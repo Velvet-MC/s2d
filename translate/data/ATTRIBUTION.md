@@ -11,8 +11,19 @@ Vendored from [GeyserMC/Geyser](https://github.com/GeyserMC/Geyser).
 
 ## Java block schema (`java_blocks.json`)
 
-Will be vendored from PrismarineJS minecraft-data (1.20.2) in the next phase
-(Task 7.2). Attribution will be added then.
+Vendored from [PrismarineJS/minecraft-data](https://github.com/PrismarineJS/minecraft-data).
+
+- Upstream path: `data/pc/1.20.2/blocks.json`
+- MC version: 1.20.2 (data version 3578)
+- Pinned commit: `28038c4f3168f148e7d6c335b5a9bfcc20ff5258`
+- Vendored: 2026-05-10
+- License: MIT.
+
+The file is an array of block objects. Each object includes `name`,
+`displayName`, `id`, `stackSize`, `states`, and other Minecraft-specific
+metadata. Phase 7.4 of the implementation plan parses this into a Java
+state schema and walks the cartesian product of property values to build
+the translation table.
 
 ## Overrides (`overrides.json`)
 
