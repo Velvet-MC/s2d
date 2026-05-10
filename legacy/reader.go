@@ -53,6 +53,10 @@ func Read(r io.Reader) (*schem.Schematic, error) {
 		return nil, fmt.Errorf("legacy: Blocks length %d != %dx%dx%d=%d",
 			len(raw.Blocks), w, h, l, total)
 	}
+	if len(raw.Data) != total {
+		return nil, fmt.Errorf("legacy: Data length %d != %dx%dx%d=%d",
+			len(raw.Data), w, h, l, total)
+	}
 
 	out := &schem.Schematic{
 		Format:   schem.FormatLegacy,
@@ -82,16 +86,8 @@ func Read(r io.Reader) (*schem.Schematic, error) {
 				}
 				id := (high4 << 8) | low8
 				data := 0
-				if len(raw.Data) > 0 {
-					dIdx := i / 2
-					if dIdx < len(raw.Data) {
-						b := raw.Data[dIdx]
-						if i%2 == 0 {
-							data = int(b>>4) & 0xF
-						} else {
-							data = int(b) & 0xF
-						}
-					}
+				if i < len(raw.Data) {
+					data = int(raw.Data[i]) & 0xF
 				}
 
 				if id == 0 {

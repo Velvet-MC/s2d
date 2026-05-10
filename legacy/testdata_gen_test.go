@@ -27,7 +27,7 @@ func TestGenerateFixtures(t *testing.T) {
 			"Height":    int16(1),
 			"Length":    int16(1),
 			"Blocks":    []byte{0x01, 0x01}, // id=1 stone, both cells
-			"Data":      []byte{0x00},        // both nibbles 0; one byte covers two cells
+			"Data":      []byte{0x00, 0x00},   // one byte per cell
 		}
 		writeFixture(t, filepath.Join(dir, "basic.schematic"), root)
 	}
