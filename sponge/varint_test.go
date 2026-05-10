@@ -41,8 +41,8 @@ func TestReadVarint_Cases(t *testing.T) {
 func TestReadVarint_EOF(t *testing.T) {
 	// Continuation bit set but no next byte.
 	_, _, err := readVarint(bytes.NewReader([]byte{0x80}))
-	if !errors.Is(err, io.ErrUnexpectedEOF) && err == nil {
-		t.Fatalf("expected EOF/UnexpectedEOF, got %v", err)
+	if !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatalf("expected io.ErrUnexpectedEOF, got %v", err)
 	}
 }
 
