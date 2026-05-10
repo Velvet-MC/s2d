@@ -1,0 +1,25 @@
+package sponge
+
+import (
+	"bytes"
+	"io"
+
+	"github.com/Clxser/S2D/schem"
+)
+
+func init() {
+	schem.Register(schem.FormatHandler{
+		Name:       schem.FormatSpongeV2,
+		Extensions: []string{".schem"},
+		Signature:  signatureMatch,
+		Read: func(r io.Reader) (*schem.Schematic, error) {
+			return Read(r)
+		},
+	})
+}
+
+// signatureMatch returns true if the decompressed header looks like Sponge v2.
+// Cheap heuristic: NBT root contains the bytes "Version" near the start.
+func signatureMatch(headerPeek []byte) bool {
+	return bytes.Contains(headerPeek, []byte("Version"))
+}
