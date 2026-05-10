@@ -58,12 +58,15 @@ func MissingBlock() world.Block {
 }
 
 // Lookup translates a canonical Java state string to a Dragonfly Result.
-// In the v1.0-stub form, every key is unrecognized; this is replaced by
-// the real implementation in translate/table.go (Phase 7.4).
+// Safe for concurrent use; the table is built once via sync.Once on first
+// call. Unknown keys yield Recognized=false with the missing-block fallback.
 func Lookup(canonicalJavaState string) Result {
-	return Result{
-		Block:      MissingBlock(),
-		Recognized: false,
-		RawKey:     canonicalJavaState,
+	tableOnce.Do(buildTable)
+	if tableErr != nil {
+		return Result{Block: MissingBlock(), RawKey: canonicalJavaState}
 	}
+	if r, ok := table[canonicalJavaState]; ok {
+		return r
+	}
+	return Result{Block: MissingBlock(), RawKey: canonicalJavaState}
 }
