@@ -1,0 +1,104 @@
+package schem_test
+
+import (
+	"os"
+	"testing"
+
+	_ "github.com/df-mc/dragonfly/server/block" // register vanilla Bedrock blocks
+	_ "github.com/Clxser/S2D/legacy"            // register legacy handler via init()
+	_ "github.com/Clxser/S2D/sponge"            // register sponge handler via init()
+
+	"github.com/Clxser/S2D/schem"
+)
+
+func TestEndToEnd_SpongeSingleStone(t *testing.T) {
+	f, err := os.Open("testdata/single_stone.schem")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	s, err := schem.Read(f.Name(), f)
+	if err != nil {
+		t.Fatalf("Read: %v", err)
+	}
+
+	if s.Format != schem.FormatSpongeV2 {
+		t.Errorf("format: %q", s.Format)
+	}
+	if len(s.Blocks) != 1 {
+		t.Fatalf("blocks: %d", len(s.Blocks))
+	}
+	if s.Blocks[0].Block == nil {
+		t.Fatalf("Block is nil")
+	}
+	name, _ := s.Blocks[0].Block.EncodeBlock()
+	if name != "minecraft:stone" {
+		t.Errorf("name: %q want minecraft:stone", name)
+	}
+}
+
+func TestEndToEnd_SpongeMultiPalette(t *testing.T) {
+	f, err := os.Open("testdata/multi_palette.schem")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	s, err := schem.Read(f.Name(), f)
+	if err != nil {
+		t.Fatalf("Read: %v", err)
+	}
+
+	if s.Format != schem.FormatSpongeV2 {
+		t.Errorf("format: %q", s.Format)
+	}
+	if len(s.Blocks) != 16 {
+		t.Fatalf("blocks: %d", len(s.Blocks))
+	}
+	// First four cells exercise all four palette entries via the multi-byte varint.
+	wantNames := []string{
+		"minecraft:stone",
+		"minecraft:dirt",
+		"minecraft:oak_planks",
+		"minecraft:diamond_block",
+	}
+	for i, want := range wantNames {
+		if s.Blocks[i].Block == nil {
+			t.Fatalf("Blocks[%d] nil", i)
+		}
+		got, _ := s.Blocks[i].Block.EncodeBlock()
+		if got != want {
+			t.Errorf("Blocks[%d]: got %q want %q", i, got, want)
+		}
+	}
+}
+
+func TestEndToEnd_LegacyBasic(t *testing.T) {
+	f, err := os.Open("testdata/basic.schematic")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	s, err := schem.Read(f.Name(), f)
+	if err != nil {
+		t.Fatalf("Read: %v", err)
+	}
+
+	if s.Format != schem.FormatLegacy {
+		t.Errorf("format: %q", s.Format)
+	}
+	if len(s.Blocks) != 2 {
+		t.Fatalf("blocks: %d", len(s.Blocks))
+	}
+	for i, b := range s.Blocks {
+		if b.Block == nil {
+			t.Fatalf("Blocks[%d] nil", i)
+		}
+		name, _ := b.Block.EncodeBlock()
+		if name != "minecraft:stone" {
+			t.Errorf("Blocks[%d]: got %q want minecraft:stone", i, name)
+		}
+	}
+}
