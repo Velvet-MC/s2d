@@ -1,10 +1,7 @@
 // Package sponge reads Sponge Schematic v2 (.schem) files. It depends on
 // gophertunnel/minecraft/nbt for big-endian Java NBT decoding.
 //
-// Translation to Dragonfly world.Block is deferred to a hook (resolveBlock)
-// so this package can be exercised before the translate package exists.
-// Phase 7.5 of the implementation plan replaces resolveBlock with a call
-// to translate.Lookup once that package is ready.
+// Translation to Dragonfly world.Block is performed by translate.Lookup.
 package sponge
 
 import (
@@ -13,11 +10,11 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/df-mc/dragonfly/server/world"
 	"github.com/sandertv/gophertunnel/minecraft/nbt"
 
 	"github.com/Clxser/S2D/palette"
 	"github.com/Clxser/S2D/schem"
+	"github.com/Clxser/S2D/translate"
 )
 
 // rawSchematic mirrors the Sponge v2 NBT root.
@@ -31,28 +28,6 @@ type rawSchematic struct {
 	Palette     map[string]int32 `nbt:"Palette"`
 	BlockData   []byte           `nbt:"BlockData"`
 	Offset      []int32          `nbt:"Offset,omitempty"`
-}
-
-// lookupResult is the placeholder shape returned by resolveBlock until
-// the translate package is wired in (Phase 7.5).
-type lookupResult struct {
-	Block      world.Block
-	Liquid     world.Liquid
-	Recognized bool
-	RawKey     string
-}
-
-// resolveBlock is a stub: it returns Dragonfly air for every canonical key,
-// marking the result unrecognized so the reader populates UnknownReport.
-// Phase 7.5 of the implementation plan replaces calls to this function with
-// translate.Lookup(canonical).
-func resolveBlock(canonical string) lookupResult {
-	air, _ := world.BlockByName("minecraft:air", nil)
-	return lookupResult{
-		Block:      air,
-		Recognized: false,
-		RawKey:     canonical,
-	}
 }
 
 // Read parses a Sponge v2 schematic from r.
@@ -137,7 +112,7 @@ func Read(r io.Reader) (*schem.Schematic, error) {
 						x, y, z, key, perr)
 				}
 				canonical := js.Canonical()
-				res := resolveBlock(canonical)
+				res := translate.Lookup(canonical)
 				if !res.Recognized {
 					out.Unknowns.Counts[res.RawKey]++
 					out.Unknowns.Total++

@@ -4,21 +4,18 @@ import (
 	"os"
 	"testing"
 
-	_ "github.com/df-mc/dragonfly/server/block" // register vanilla blocks for missing-block resolution
+	_ "github.com/df-mc/dragonfly/server/block" // register vanilla blocks for translation
+
 	"github.com/Clxser/S2D/schem"
 )
 
 func TestRead_Basic(t *testing.T) {
 	f, err := os.Open("testdata/basic.schematic")
-	if err != nil {
-		t.Fatal(err)
-	}
+	if err != nil { t.Fatal(err) }
 	defer f.Close()
 
 	s, err := Read(f)
-	if err != nil {
-		t.Fatalf("Read: %v", err)
-	}
+	if err != nil { t.Fatalf("Read: %v", err) }
 
 	if s.Format != schem.FormatLegacy {
 		t.Errorf("format: %q want %q", s.Format, schem.FormatLegacy)
@@ -32,33 +29,33 @@ func TestRead_Basic(t *testing.T) {
 	if s.Blocks[0].Pos != [3]int{0, 0, 0} || s.Blocks[1].Pos != [3]int{1, 0, 0} {
 		t.Errorf("positions: %v %v", s.Blocks[0].Pos, s.Blocks[1].Pos)
 	}
-	// Both cells are stone; canonical = "minecraft:stone".
-	// Translate stub returns Recognized=false for every key, so both go into Unknowns.
-	if s.Unknowns.Total != 2 {
-		t.Errorf("expected 2 unknowns (stub translate), got %d: %v",
-			s.Unknowns.Total, s.Unknowns.Counts)
+	// Both cells are stone (id=1, data=0). With real translate, both resolve.
+	for i, b := range s.Blocks {
+		if b.Block == nil {
+			t.Fatalf("Blocks[%d].Block is nil", i)
+		}
+		name, _ := b.Block.EncodeBlock()
+		if name != "minecraft:stone" {
+			t.Errorf("Blocks[%d]: got %q want minecraft:stone", i, name)
+		}
 	}
-	if s.Unknowns.Counts["minecraft:stone"] != 2 {
-		t.Errorf("expected 2x minecraft:stone in unknowns, got %v", s.Unknowns.Counts)
+	if s.Unknowns.Total != 0 {
+		t.Errorf("expected 0 unknowns for vanilla stone, got %d: %v",
+			s.Unknowns.Total, s.Unknowns.Counts)
 	}
 }
 
 func TestRead_AddBlocks(t *testing.T) {
 	f, err := os.Open("testdata/addblocks.schematic")
-	if err != nil {
-		t.Fatal(err)
-	}
+	if err != nil { t.Fatal(err) }
 	defer f.Close()
 
 	s, err := Read(f)
-	if err != nil {
-		t.Fatalf("Read: %v", err)
-	}
+	if err != nil { t.Fatalf("Read: %v", err) }
 
-	// id=256, data=0. legacy.json may or may not have an entry for 256:0
-	// (it's an unusual modded ID). Whether the cell ends up as a known
-	// translation or as a "legacy:256:0" unknown, the parser itself
-	// must not error.
+	// id=256 is not in legacy.json (modded territory). The reader should
+	// still parse cleanly; the cell ends up in Unknowns under "legacy:256:0"
+	// and the block holds the missing fallback.
 	if s.Width != 1 || s.Height != 1 || s.Length != 1 {
 		t.Fatalf("dims: %dx%dx%d", s.Width, s.Height, s.Length)
 	}
@@ -66,8 +63,7 @@ func TestRead_AddBlocks(t *testing.T) {
 		t.Fatalf("expected 1 block, got %d", len(s.Blocks))
 	}
 	t.Logf("addblocks Unknowns: %v", s.Unknowns.Counts)
-	// Either a real Java state string or "legacy:256:0" must appear.
-	if len(s.Unknowns.Counts) == 0 {
-		t.Errorf("expected at least one unknown entry, got empty: %+v", s.Unknowns)
+	if s.Unknowns.Counts["legacy:256:0"] != 1 {
+		t.Errorf("expected 1x legacy:256:0 in unknowns, got %v", s.Unknowns.Counts)
 	}
 }

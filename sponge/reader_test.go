@@ -4,6 +4,8 @@ import (
 	"os"
 	"testing"
 
+	_ "github.com/df-mc/dragonfly/server/block" // register vanilla blocks for translation
+
 	"github.com/Clxser/S2D/schem"
 )
 
@@ -16,7 +18,7 @@ func TestRead_SingleStone(t *testing.T) {
 	if err != nil { t.Fatalf("Read: %v", err) }
 
 	if s.Format != schem.FormatSpongeV2 {
-		t.Errorf("format: %q", s.Format)
+		t.Errorf("format: %q want %q", s.Format, schem.FormatSpongeV2)
 	}
 	if s.Width != 1 || s.Height != 1 || s.Length != 1 {
 		t.Fatalf("dims: %dx%dx%d", s.Width, s.Height, s.Length)
@@ -27,13 +29,16 @@ func TestRead_SingleStone(t *testing.T) {
 	if s.Blocks[0].Pos != [3]int{0, 0, 0} {
 		t.Errorf("pos: %v", s.Blocks[0].Pos)
 	}
-	// With the translate stub, every palette entry should appear in Unknowns
-	// because no real translation exists yet. Real name assertions land in Phase 7.5.
-	if s.Unknowns.Total != 1 {
-		t.Errorf("expected 1 unknown (stub translate), got %d", s.Unknowns.Total)
+	if s.Blocks[0].Block == nil {
+		t.Fatal("Block is nil")
 	}
-	if _, ok := s.Unknowns.Counts["minecraft:stone"]; !ok {
-		t.Errorf("expected minecraft:stone in unknowns, got %v", s.Unknowns.Counts)
+	name, _ := s.Blocks[0].Block.EncodeBlock()
+	if name != "minecraft:stone" {
+		t.Errorf("got %q want minecraft:stone", name)
+	}
+	if s.Unknowns.Total != 0 {
+		t.Errorf("expected 0 unknowns for vanilla stone, got %d: %v",
+			s.Unknowns.Total, s.Unknowns.Counts)
 	}
 }
 
@@ -51,7 +56,7 @@ func TestRead_MultiPalette(t *testing.T) {
 	}
 	if len(s.Blocks) != 16 { t.Fatalf("expected 16 blocks, got %d", len(s.Blocks)) }
 
-	// Verify YZX iteration order: cells [0..3] should have x=0..3, all y=z=0.
+	// YZX iteration: cells [0..3] should have x=0..3, all y=z=0.
 	for x := 0; x < 4; x++ {
 		want := [3]int{x, 0, 0}
 		if s.Blocks[x].Pos != want {
@@ -59,18 +64,25 @@ func TestRead_MultiPalette(t *testing.T) {
 		}
 	}
 
-	// Total unknowns should be 16 (all cells, since translate is stub).
-	if s.Unknowns.Total != 16 {
-		t.Errorf("expected 16 unknowns, got %d", s.Unknowns.Total)
+	// Cell index sequence: 0,1,200,3 = stone, dirt, oak_planks, diamond_block.
+	// First row gives us all four palette entries.
+	wantNames := []string{
+		"minecraft:stone",
+		"minecraft:dirt",
+		"minecraft:oak_planks",
+		"minecraft:diamond_block",
 	}
-	// Palette had 4 entries: stone, dirt, oak_planks, diamond_block.
-	if len(s.Unknowns.Counts) != 4 {
-		t.Errorf("expected 4 distinct palette keys, got %d: %v",
-			len(s.Unknowns.Counts), s.Unknowns.Counts)
+	for i, want := range wantNames {
+		if s.Blocks[i].Block == nil {
+			t.Fatalf("Blocks[%d].Block is nil", i)
+		}
+		got, _ := s.Blocks[i].Block.EncodeBlock()
+		if got != want {
+			t.Errorf("Blocks[%d]: got %q want %q", i, got, want)
+		}
 	}
-	// oak_planks at index 200 (multi-byte varint) should have been decoded.
-	if _, ok := s.Unknowns.Counts["minecraft:oak_planks"]; !ok {
-		t.Errorf("oak_planks missing from unknowns (varint multi-byte broken?): %v",
-			s.Unknowns.Counts)
+	if s.Unknowns.Total != 0 {
+		t.Errorf("expected 0 unknowns for vanilla blocks, got %d: %v",
+			s.Unknowns.Total, s.Unknowns.Counts)
 	}
 }
