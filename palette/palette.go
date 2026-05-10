@@ -56,8 +56,8 @@ func Decode(s string) (JavaState, error) {
 	} else {
 		js.Name = body
 	}
-	if js.Name == "" {
-		return JavaState{}, fmt.Errorf("palette: empty block name in %q", s)
+	if js.Namespace == "" || js.Name == "" {
+		return JavaState{}, fmt.Errorf("palette: empty namespace or block name in %q", s)
 	}
 	return js, nil
 }
