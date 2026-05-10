@@ -1,0 +1,61 @@
+package properties
+
+// Facing converts Java facing (north|south|east|west|up|down) to whichever
+// Bedrock property a particular block uses. Bedrock has historically used
+// many names for the same concept: "direction" (4-way int), "facing_direction"
+// (6-way int), "weirdo_direction" (stairs, 4-way int with a unique encoding),
+// and others.
+//
+// The branch table below covers the common cases. Add families as needed
+// when the table-build tests surface mismatches.
+func Facing(javaValue, bedrockIdent string) (string, any, bool) {
+	switch bedrockIdent {
+	case "oak_stairs", "spruce_stairs", "birch_stairs", "jungle_stairs",
+		"acacia_stairs", "dark_oak_stairs", "mangrove_stairs", "cherry_stairs",
+		"crimson_stairs", "warped_stairs", "bamboo_stairs",
+		"stone_stairs", "cobblestone_stairs", "mossy_cobblestone_stairs",
+		"brick_stairs", "stone_brick_stairs", "mossy_stone_brick_stairs",
+		"sandstone_stairs", "smooth_sandstone_stairs", "red_sandstone_stairs",
+		"smooth_red_sandstone_stairs", "nether_brick_stairs", "red_nether_brick_stairs",
+		"quartz_stairs", "smooth_quartz_stairs", "purpur_stairs",
+		"prismarine_stairs", "prismarine_brick_stairs", "dark_prismarine_stairs",
+		"end_brick_stairs", "blackstone_stairs", "polished_blackstone_stairs",
+		"polished_blackstone_brick_stairs", "polished_granite_stairs",
+		"polished_diorite_stairs", "polished_andesite_stairs",
+		"granite_stairs", "diorite_stairs", "andesite_stairs",
+		"deepslate_brick_stairs", "deepslate_tile_stairs",
+		"polished_deepslate_stairs", "cobbled_deepslate_stairs",
+		"mud_brick_stairs", "tuff_stairs", "polished_tuff_stairs", "tuff_brick_stairs":
+		// Stairs on Bedrock use weirdo_direction:
+		// east=0, west=1, south=2, north=3.
+		switch javaValue {
+		case "east":
+			return "weirdo_direction", int32(0), true
+		case "west":
+			return "weirdo_direction", int32(1), true
+		case "south":
+			return "weirdo_direction", int32(2), true
+		case "north":
+			return "weirdo_direction", int32(3), true
+		}
+		return "weirdo_direction", int32(0), true
+	default:
+		// Most directional blocks use "direction" or "facing_direction".
+		// 4-way encoding: south=0, west=1, north=2, east=3.
+		switch javaValue {
+		case "south":
+			return "direction", int32(0), true
+		case "west":
+			return "direction", int32(1), true
+		case "north":
+			return "direction", int32(2), true
+		case "east":
+			return "direction", int32(3), true
+		case "up":
+			return "facing_direction", int32(1), true
+		case "down":
+			return "facing_direction", int32(0), true
+		}
+		return "direction", int32(0), true
+	}
+}
