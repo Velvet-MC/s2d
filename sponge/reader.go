@@ -133,11 +133,12 @@ func ScanWithInfo(r io.Reader, onInfo schem.InfoHandler, yield schem.BlockHandle
 	}
 
 	info := schem.ScanInfo{
-		Format:   schem.FormatSpongeV2,
-		Width:    w,
-		Height:   h,
-		Length:   l,
-		Unknowns: schem.UnknownReport{Counts: map[string]int{}},
+		Format:      schem.FormatSpongeV2,
+		Width:       w,
+		Height:      h,
+		Length:      l,
+		PaletteSize: len(indexToKey),
+		Unknowns:    schem.UnknownReport{Counts: map[string]int{}},
 	}
 	if off, err := asInt32Slice(root["Offset"]); err == nil && len(off) == 3 {
 		info.Offset = [3]int{int(off[0]), int(off[1]), int(off[2])}
@@ -164,7 +165,13 @@ func ScanWithInfo(r io.Reader, onInfo schem.InfoHandler, yield schem.BlockHandle
 					info.Unknowns.Counts[res.RawKey]++
 					info.Unknowns.Total++
 				}
-				if err := yield(schem.Block{Pos: [3]int{x, y, z}, Block: res.Block, Liquid: res.Liquid}); err != nil {
+				if err := yield(schem.Block{
+					Pos:            [3]int{x, y, z},
+					Block:          res.Block,
+					Liquid:         res.Liquid,
+					PaletteIndex:   idx,
+					PaletteIndexOK: true,
+				}); err != nil {
 					return info, fmt.Errorf("sponge v2: yield at (%d,%d,%d): %w", x, y, z, err)
 				}
 			}

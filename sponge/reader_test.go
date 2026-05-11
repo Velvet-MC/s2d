@@ -130,3 +130,37 @@ func TestScanDecodesEachPaletteEntryOnce(t *testing.T) {
 		t.Fatalf("palette decode calls = %d, want one per palette entry (4)", calls)
 	}
 }
+
+func TestScanReportsPaletteIndexes(t *testing.T) {
+	f, err := os.Open("testdata/multi_palette.schem")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
+
+	var infoPaletteSize int
+	var got []uint32
+	info, err := ScanWithInfo(f, func(info schem.ScanInfo) error {
+		infoPaletteSize = info.PaletteSize
+		return nil
+	}, func(b schem.Block) error {
+		if !b.PaletteIndexOK {
+			t.Fatalf("block at %v did not report palette index", b.Pos)
+		}
+		got = append(got, b.PaletteIndex)
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if info.PaletteSize != 201 || infoPaletteSize != 201 {
+		t.Fatalf("palette size = %d/%d, want 201", info.PaletteSize, infoPaletteSize)
+	}
+	want := []uint32{0, 1, 200, 3}
+	for i, w := range want {
+		if got[i] != w {
+			t.Fatalf("palette index[%d] = %d, want %d", i, got[i], w)
+		}
+	}
+}

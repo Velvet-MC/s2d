@@ -20,9 +20,11 @@ const (
 
 // Block is one cell in a parsed schematic.
 type Block struct {
-	Pos    [3]int       // x, y, z within the schematic local frame
-	Block  world.Block  // translated Bedrock block; never nil
-	Liquid world.Liquid // non-nil iff the Java source was waterlogged
+	Pos            [3]int       // x, y, z within the schematic local frame
+	Block          world.Block  // translated Bedrock block; never nil
+	Liquid         world.Liquid // non-nil iff the Java source was waterlogged
+	PaletteIndex   uint32       // source palette index when PaletteIndexOK is true
+	PaletteIndexOK bool         // true when the source format had palette indexes
 }
 
 // Schematic is the parsed result of Read.
@@ -39,6 +41,7 @@ type ScanInfo struct {
 	Format                Format
 	Width, Height, Length int
 	Offset                [3]int
+	PaletteSize           int
 	Unknowns              UnknownReport
 }
 
