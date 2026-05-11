@@ -158,6 +158,50 @@ func TestRead_SpongeV3NestedBlocks(t *testing.T) {
 	}
 }
 
+func TestScanSharesBedrockStatePropertiesPerPaletteIndex(t *testing.T) {
+	var data bytes.Buffer
+	writeVarintBuf(&data, 0)
+	writeVarintBuf(&data, 0)
+
+	path := filepath.Join(t.TempDir(), "shared_props.schem")
+	writeFixture(t, path, map[string]any{
+		"Version":     int32(2),
+		"DataVersion": int32(2975),
+		"Width":       int16(2),
+		"Height":      int16(1),
+		"Length":      int16(1),
+		"PaletteMax":  int32(1),
+		"Palette": map[string]int32{
+			"minecraft:oak_stairs[facing=north,half=bottom,shape=straight,waterlogged=false]": 0,
+		},
+		"BlockData": data.Bytes(),
+	})
+
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
+
+	var ptrs []uintptr
+	_, err = Scan(f, func(b schem.Block) error {
+		if len(b.BedrockState.Properties) == 0 {
+			t.Fatalf("expected bedrock properties for %s", b.BedrockState.Name)
+		}
+		ptrs = append(ptrs, reflect.ValueOf(b.BedrockState.Properties).Pointer())
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ptrs) != 2 {
+		t.Fatalf("scanned %d blocks, want 2", len(ptrs))
+	}
+	if ptrs[0] != ptrs[1] {
+		t.Fatalf("same palette index used different BedrockState property maps: %#x != %#x", ptrs[0], ptrs[1])
+	}
+}
+
 func TestScanDecodesEachPaletteEntryOnce(t *testing.T) {
 	f, err := os.Open("testdata/multi_palette.schem")
 	if err != nil {

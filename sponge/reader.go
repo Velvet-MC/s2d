@@ -9,7 +9,6 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
-	"maps"
 	"reflect"
 	"strings"
 
@@ -140,6 +139,7 @@ func ScanWithInfo(r io.Reader, onInfo schem.InfoHandler, yield schem.BlockHandle
 		indexToKey[v] = k
 	}
 	indexToResult := make([]translate.Result, len(indexToKey))
+	indexToBedrockState := make([]schem.BedrockState, len(indexToKey))
 	for i, key := range indexToKey {
 		if key == "" {
 			continue
@@ -148,7 +148,9 @@ func ScanWithInfo(r io.Reader, onInfo schem.InfoHandler, yield schem.BlockHandle
 		if perr != nil {
 			return schem.ScanInfo{}, fmt.Errorf("sponge v%d: palette key %q: %w", version, key, perr)
 		}
-		indexToResult[i] = lookupJavaState(js.Canonical())
+		res := lookupJavaState(js.Canonical())
+		indexToResult[i] = res
+		indexToBedrockState[i] = schem.BedrockState{Name: res.BedrockState.Name, Properties: res.BedrockState.Properties}
 	}
 	blockEntityNBT := bannerBlockEntities(blockEntitiesValue)
 
@@ -194,7 +196,7 @@ func ScanWithInfo(r io.Reader, onInfo schem.InfoHandler, yield schem.BlockHandle
 					Pos:            pos,
 					Block:          block,
 					Liquid:         res.Liquid,
-					BedrockState:   schem.BedrockState{Name: res.BedrockState.Name, Properties: maps.Clone(res.BedrockState.Properties)},
+					BedrockState:   indexToBedrockState[idx],
 					PaletteIndex:   idx,
 					PaletteIndexOK: true,
 				}); err != nil {

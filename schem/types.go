@@ -23,6 +23,8 @@ const (
 // BedrockState is a neutral Bedrock block-state identifier. It is the
 // minecraft: identifier and state properties a consumer should preserve even
 // if its runtime has no concrete behaviour implementation for the block.
+// Properties may be shared between blocks that came from the same source
+// palette entry; call Clone before mutating them.
 type BedrockState struct {
 	Name       string
 	Properties map[string]any
