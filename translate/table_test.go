@@ -601,6 +601,25 @@ func TestLookupPreservesHighRiskInteractiveStates(t *testing.T) {
 				"facing_direction": int32(3),
 			},
 		},
+		{
+			key:      "minecraft:iron_door[facing=east,half=upper,hinge=right,open=false,powered=false]",
+			wantName: "minecraft:iron_door",
+			wantProps: map[string]any{
+				"door_hinge_bit":               uint8(1),
+				"minecraft:cardinal_direction": "east",
+				"open_bit":                     uint8(0),
+				"upper_block_bit":              uint8(1),
+			},
+		},
+		{
+			key:      "minecraft:iron_trapdoor[facing=north,half=top,open=true,powered=false,waterlogged=false]",
+			wantName: "minecraft:iron_trapdoor",
+			wantProps: map[string]any{
+				"direction":       int32(3),
+				"open_bit":        uint8(1),
+				"upside_down_bit": uint8(1),
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.key, func(t *testing.T) {
@@ -615,6 +634,30 @@ func TestLookupPreservesHighRiskInteractiveStates(t *testing.T) {
 				if got := res.BedrockState.Properties[key]; got != want {
 					t.Fatalf("%s property %s = %#v (%T), want %#v (%T)", tt.key, key, got, got, want, want)
 				}
+			}
+		})
+	}
+}
+
+func TestLookupPreservesSignNBT(t *testing.T) {
+	for _, key := range []string{
+		"minecraft:oak_sign[rotation=4,waterlogged=false]",
+		"minecraft:oak_wall_sign[facing=north,waterlogged=false]",
+		"minecraft:oak_hanging_sign[attached=false,rotation=4,waterlogged=false]",
+		"minecraft:oak_wall_hanging_sign[facing=north,waterlogged=false]",
+	} {
+		t.Run(key, func(t *testing.T) {
+			res := Lookup(key)
+			if !res.Recognized {
+				t.Fatalf("%s not recognized", key)
+			}
+			nbter, ok := res.Block.(world.NBTer)
+			if !ok {
+				t.Fatalf("%s result does not implement world.NBTer", key)
+			}
+			nbt := nbter.EncodeNBT()
+			if got := nbt["id"]; got != "Sign" {
+				t.Fatalf("id = %#v, want Sign", got)
 			}
 		})
 	}

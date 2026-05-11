@@ -19,19 +19,32 @@ import (
 // state fidelity matters even when the server runtime has no safe behaviour
 // implementation for the block.
 type StateBlock struct {
-	state BedrockState
-	nbt   map[string]any
+	name       string
+	properties map[string]any
+	nbt        map[string]any
+	hash       uint64
 }
 
 // NewStateBlock returns an inert world.Block for state.
 func NewStateBlock(state BedrockState) StateBlock {
-	return StateBlock{state: state.Clone()}
+	return newStateBlock(state, nil)
 }
 
 // NewStateBlockWithNBT returns an inert world.Block for state carrying
 // block-entity NBT for Bedrock clients and chunk storage.
 func NewStateBlockWithNBT(state BedrockState, data map[string]any) StateBlock {
-	return StateBlock{state: state.Clone(), nbt: maps.Clone(data)}
+	return newStateBlock(state, data)
+}
+
+func newStateBlock(state BedrockState, data map[string]any) StateBlock {
+	props := maps.Clone(state.Properties)
+	nbtData := maps.Clone(data)
+	return StateBlock{
+		name:       state.Name,
+		properties: props,
+		nbt:        nbtData,
+		hash:       fnv1.HashString64(stateBlockHashKey(BedrockState{Name: state.Name, Properties: props}) + stateBlockNBTKey(nbtData)),
+	}
 }
 
 // MergeBlockNBT returns block with additional block-entity data attached when
@@ -50,19 +63,21 @@ func MergeBlockNBT(block world.Block, data map[string]any) world.Block {
 		merged = map[string]any{}
 	}
 	maps.Copy(merged, data)
-	return StateBlock{state: sb.state.Clone(), nbt: merged}
+	return newStateBlock(BedrockState{Name: sb.name, Properties: sb.properties}, merged)
 }
 
-// EncodeBlock returns the Bedrock identifier and state properties.
+// EncodeBlock returns the Bedrock identifier and state properties. StateBlock
+// owns immutable schematic state maps, so it returns the cached map directly to
+// avoid per-cell clone churn in Dragonfly's structure writer.
 func (b StateBlock) EncodeBlock() (string, map[string]any) {
-	return b.state.Name, maps.Clone(b.state.Properties)
+	return b.name, b.properties
 }
 
 // Hash returns a unique base identity for hot-path caches while keeping
 // math.MaxUint64 as the state hash so Dragonfly resolves the runtime ID from
 // EncodeBlock instead of expecting a registered concrete block hash.
 func (b StateBlock) Hash() (uint64, uint64) {
-	return fnv1.HashString64(stateBlockHashKey(b.state) + stateBlockNBTKey(b.nbt)), math.MaxUint64
+	return b.hash, math.MaxUint64
 }
 
 // Model returns a full-cube inert model.
@@ -83,8 +98,7 @@ func (b StateBlock) EncodeNBT() map[string]any {
 // DecodeNBT keeps the inert state block when Dragonfly reloads NBT-backed
 // runtime IDs from chunk storage.
 func (b StateBlock) DecodeNBT(data map[string]any) any {
-	b.nbt = maps.Clone(data)
-	return b
+	return newStateBlock(BedrockState{Name: b.name, Properties: b.properties}, data)
 }
 
 type stateBlockModel struct{}

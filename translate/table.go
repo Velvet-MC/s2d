@@ -321,6 +321,9 @@ func translateOne(palette *bedrockPaletteIndex, javaName, bedrockIdent string, j
 }
 
 func inferredBlockNBT(javaName, bedrockIdent string) map[string]any {
+	if isSignIdentifier(bedrockIdent) {
+		return map[string]any{"id": "Sign"}
+	}
 	if bedrockIdent != "standing_banner" && bedrockIdent != "wall_banner" {
 		return nil
 	}
@@ -332,6 +335,13 @@ func inferredBlockNBT(javaName, bedrockIdent string) map[string]any {
 		"id":   "Banner",
 		"Base": bannerColorIndex(colorName),
 	}
+}
+
+func isSignIdentifier(bedrockIdent string) bool {
+	return bedrockIdent == "standing_sign" || bedrockIdent == "wall_sign" ||
+		strings.HasSuffix(bedrockIdent, "_standing_sign") ||
+		strings.HasSuffix(bedrockIdent, "_wall_sign") ||
+		strings.HasSuffix(bedrockIdent, "_hanging_sign")
 }
 
 func bannerColorName(javaName string) (string, bool) {
@@ -471,8 +481,6 @@ var bedrockIdentifierAliases = map[string]string{
 	"cherry_sapling":               "short_grass",
 	"bamboo_stairs":                "oak_stairs",
 	"bamboo_mosaic_stairs":         "oak_stairs",
-	"iron_trapdoor":                "trapdoor",
-	"iron_door":                    "wooden_door",
 	"dirt_path":                    "grass_path",
 	"light_gray_glazed_terracotta": "silver_glazed_terracotta",
 	"red_nether_bricks":            "red_nether_brick",
