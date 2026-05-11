@@ -2,6 +2,7 @@ package sponge
 
 import (
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/Velvet-MC/s2d/palette"
@@ -169,5 +170,30 @@ func TestScanReportsPaletteIndexes(t *testing.T) {
 		if state == "" {
 			t.Fatalf("bedrock state[%d] was empty", i)
 		}
+	}
+}
+
+func TestBannerBlockEntitiesKeepsPatterns(t *testing.T) {
+	patterns := []any{map[string]any{"Pattern": "bs", "Color": int32(14)}}
+	got := bannerBlockEntities([]any{
+		map[string]any{
+			"Id":       "minecraft:banner",
+			"Pos":      [3]int32{1, 2, 3},
+			"Patterns": patterns,
+		},
+		map[string]any{
+			"Id":  "minecraft:chest",
+			"Pos": [3]int32{4, 5, 6},
+		},
+	})
+	if len(got) != 1 {
+		t.Fatalf("bannerBlockEntities len = %d, want 1", len(got))
+	}
+	nbt := got[[3]int{1, 2, 3}]
+	if nbt["id"] != "Banner" {
+		t.Fatalf("id = %#v, want Banner", nbt["id"])
+	}
+	if !reflect.DeepEqual(nbt["Patterns"], patterns) {
+		t.Fatalf("Patterns not preserved: %#v", nbt["Patterns"])
 	}
 }

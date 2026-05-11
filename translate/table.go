@@ -306,7 +306,7 @@ func translateOne(palette *bedrockPaletteIndex, javaName, bedrockIdent string, j
 	}
 	res := Result{BedrockState: state.Clone(), Recognized: ok}
 	if ok {
-		res.Block = NewStateBlock(state)
+		res.Block = NewStateBlockWithNBT(state, inferredBlockNBT(javaName, bedrockIdent))
 	} else {
 		res.Block = MissingBlock()
 	}
@@ -318,6 +318,56 @@ func translateOne(palette *bedrockPaletteIndex, javaName, bedrockIdent string, j
 		}
 	}
 	return res
+}
+
+func inferredBlockNBT(javaName, bedrockIdent string) map[string]any {
+	if bedrockIdent != "standing_banner" && bedrockIdent != "wall_banner" {
+		return nil
+	}
+	colorName, ok := bannerColorName(javaName)
+	if !ok {
+		return map[string]any{"id": "Banner"}
+	}
+	return map[string]any{
+		"id":   "Banner",
+		"Base": bannerColorIndex(colorName),
+	}
+}
+
+func bannerColorName(javaName string) (string, bool) {
+	name := strings.TrimSuffix(javaName, "_wall_banner")
+	name = strings.TrimSuffix(name, "_banner")
+	if name == javaName {
+		return "", false
+	}
+	_, ok := bannerColorIndexByName[name]
+	return name, ok
+}
+
+func bannerColorIndex(colorName string) int32 {
+	if n, ok := bannerColorIndexByName[colorName]; ok {
+		return n
+	}
+	return 0
+}
+
+var bannerColorIndexByName = map[string]int32{
+	"white":      0,
+	"orange":     1,
+	"magenta":    2,
+	"light_blue": 3,
+	"yellow":     4,
+	"lime":       5,
+	"pink":       6,
+	"gray":       7,
+	"light_gray": 8,
+	"cyan":       9,
+	"purple":     10,
+	"blue":       11,
+	"brown":      12,
+	"green":      13,
+	"red":        14,
+	"black":      15,
 }
 
 func baseBedrockIdentifier(javaName string, ovr override) string {

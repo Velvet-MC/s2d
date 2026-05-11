@@ -11,6 +11,7 @@ import (
 	"io"
 	"maps"
 	"reflect"
+	"strings"
 
 	"github.com/sandertv/gophertunnel/minecraft/nbt"
 
@@ -132,6 +133,7 @@ func ScanWithInfo(r io.Reader, onInfo schem.InfoHandler, yield schem.BlockHandle
 		}
 		indexToResult[i] = lookupJavaState(js.Canonical())
 	}
+	blockEntityNBT := bannerBlockEntities(root["BlockEntities"])
 
 	info := schem.ScanInfo{
 		Format:      schem.FormatSpongeV2,
@@ -162,13 +164,18 @@ func ScanWithInfo(r io.Reader, onInfo schem.InfoHandler, yield schem.BlockHandle
 					return info, fmt.Errorf("sponge v2: at (%d,%d,%d): palette index %d out of range", x, y, z, idx)
 				}
 				res := indexToResult[idx]
+				pos := [3]int{x, y, z}
 				if !res.Recognized {
 					info.Unknowns.Counts[res.RawKey]++
 					info.Unknowns.Total++
 				}
+				block := res.Block
+				if data, ok := blockEntityNBT[pos]; ok {
+					block = translate.MergeBlockNBT(block, data)
+				}
 				if err := yield(schem.Block{
-					Pos:            [3]int{x, y, z},
-					Block:          res.Block,
+					Pos:            pos,
+					Block:          block,
 					Liquid:         res.Liquid,
 					BedrockState:   schem.BedrockState{Name: res.BedrockState.Name, Properties: maps.Clone(res.BedrockState.Properties)},
 					PaletteIndex:   idx,
@@ -180,6 +187,40 @@ func ScanWithInfo(r io.Reader, onInfo schem.InfoHandler, yield schem.BlockHandle
 		}
 	}
 	return info, nil
+}
+
+func bannerBlockEntities(raw any) map[[3]int]map[string]any {
+	entries, ok := raw.([]any)
+	if !ok || len(entries) == 0 {
+		return nil
+	}
+	out := map[[3]int]map[string]any{}
+	for _, entry := range entries {
+		m, ok := entry.(map[string]any)
+		if !ok {
+			continue
+		}
+		id, _ := m["Id"].(string)
+		if !strings.Contains(id, "banner") {
+			continue
+		}
+		posSlice, err := asInt32Slice(m["Pos"])
+		if err != nil || len(posSlice) != 3 {
+			continue
+		}
+		data := map[string]any{"id": "Banner"}
+		if patterns, ok := m["Patterns"]; ok {
+			data["Patterns"] = patterns
+		}
+		if base, ok := asInt32(m["Base"]); ok {
+			data["Base"] = base
+		}
+		out[[3]int{int(posSlice[0]), int(posSlice[1]), int(posSlice[2])}] = data
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // decodePermissive decodes Java big-endian NBT into a generic map so the

@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"maps"
 	"math"
+	"reflect"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/df-mc/dragonfly/server/block/cube"
 	"github.com/df-mc/dragonfly/server/world"
@@ -18,11 +20,37 @@ import (
 // implementation for the block.
 type StateBlock struct {
 	state BedrockState
+	nbt   map[string]any
 }
 
 // NewStateBlock returns an inert world.Block for state.
 func NewStateBlock(state BedrockState) StateBlock {
 	return StateBlock{state: state.Clone()}
+}
+
+// NewStateBlockWithNBT returns an inert world.Block for state carrying
+// block-entity NBT for Bedrock clients and chunk storage.
+func NewStateBlockWithNBT(state BedrockState, data map[string]any) StateBlock {
+	return StateBlock{state: state.Clone(), nbt: maps.Clone(data)}
+}
+
+// MergeBlockNBT returns block with additional block-entity data attached when
+// it is an inert StateBlock. Existing inferred NBT, such as banner base color,
+// is kept unless additional data contains the same key.
+func MergeBlockNBT(block world.Block, data map[string]any) world.Block {
+	if len(data) == 0 {
+		return block
+	}
+	sb, ok := block.(StateBlock)
+	if !ok {
+		return block
+	}
+	merged := maps.Clone(sb.nbt)
+	if merged == nil {
+		merged = map[string]any{}
+	}
+	maps.Copy(merged, data)
+	return StateBlock{state: sb.state.Clone(), nbt: merged}
 }
 
 // EncodeBlock returns the Bedrock identifier and state properties.
@@ -34,7 +62,7 @@ func (b StateBlock) EncodeBlock() (string, map[string]any) {
 // math.MaxUint64 as the state hash so Dragonfly resolves the runtime ID from
 // EncodeBlock instead of expecting a registered concrete block hash.
 func (b StateBlock) Hash() (uint64, uint64) {
-	return fnv1.HashString64(stateBlockHashKey(b.state)), math.MaxUint64
+	return fnv1.HashString64(stateBlockHashKey(b.state) + stateBlockNBTKey(b.nbt)), math.MaxUint64
 }
 
 // Model returns a full-cube inert model.
@@ -45,13 +73,17 @@ func (StateBlock) Model() world.BlockModel {
 // EncodeNBT returns empty block-entity data for states whose Bedrock runtime
 // ID is NBT-backed. StateBlock deliberately preserves visuals only; it does
 // not emulate interactive block behaviour or inventories.
-func (StateBlock) EncodeNBT() map[string]any {
-	return map[string]any{}
+func (b StateBlock) EncodeNBT() map[string]any {
+	if len(b.nbt) == 0 {
+		return map[string]any{}
+	}
+	return maps.Clone(b.nbt)
 }
 
 // DecodeNBT keeps the inert state block when Dragonfly reloads NBT-backed
 // runtime IDs from chunk storage.
-func (b StateBlock) DecodeNBT(map[string]any) any {
+func (b StateBlock) DecodeNBT(data map[string]any) any {
+	b.nbt = maps.Clone(data)
 	return b
 }
 
@@ -94,4 +126,47 @@ func stateBlockHashKey(state BedrockState) string {
 		}
 	}
 	return out
+}
+
+func stateBlockNBTKey(data map[string]any) string {
+	if len(data) == 0 {
+		return ""
+	}
+	keys := make([]string, 0, len(data))
+	for k := range data {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var out strings.Builder
+	for _, k := range keys {
+		out.WriteByte('\x00')
+		out.WriteString(k)
+		out.WriteByte('=')
+		_, _ = fmt.Fprint(&out, stableNBTValue(data[k]))
+	}
+	return out.String()
+}
+
+func stableNBTValue(v any) any {
+	rv := reflect.ValueOf(v)
+	if rv.IsValid() && rv.Kind() == reflect.Slice {
+		items := make([]any, rv.Len())
+		for i := 0; i < rv.Len(); i++ {
+			items[i] = stableNBTValue(rv.Index(i).Interface())
+		}
+		return items
+	}
+	if m, ok := v.(map[string]any); ok {
+		keys := make([]string, 0, len(m))
+		for k := range m {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		out := make([]any, 0, len(keys)*2)
+		for _, k := range keys {
+			out = append(out, k, stableNBTValue(m[k]))
+		}
+		return out
+	}
+	return v
 }

@@ -620,6 +620,35 @@ func TestLookupPreservesHighRiskInteractiveStates(t *testing.T) {
 	}
 }
 
+func TestLookupPreservesBannerBaseNBT(t *testing.T) {
+	tests := []struct {
+		key      string
+		wantBase int32
+	}{
+		{key: "minecraft:red_banner[rotation=4]", wantBase: 14},
+		{key: "minecraft:blue_wall_banner[facing=north]", wantBase: 11},
+	}
+	for _, tt := range tests {
+		t.Run(tt.key, func(t *testing.T) {
+			res := Lookup(tt.key)
+			if !res.Recognized {
+				t.Fatalf("%s not recognized", tt.key)
+			}
+			nbter, ok := res.Block.(world.NBTer)
+			if !ok {
+				t.Fatalf("%s result does not implement world.NBTer", tt.key)
+			}
+			nbt := nbter.EncodeNBT()
+			if got := nbt["id"]; got != "Banner" {
+				t.Fatalf("id = %#v, want Banner", got)
+			}
+			if got := nbt["Base"]; got != tt.wantBase {
+				t.Fatalf("Base = %#v (%T), want %#v", got, got, tt.wantBase)
+			}
+		})
+	}
+}
+
 func TestLookupPreservesAttachmentDirections(t *testing.T) {
 	tests := []struct {
 		key       string
