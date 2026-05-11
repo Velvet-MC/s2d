@@ -18,6 +18,11 @@ import (
 	"github.com/Velvet-MC/s2d/translate"
 )
 
+var (
+	decodePaletteKey = palette.Decode
+	lookupJavaState  = translate.Lookup
+)
+
 // Read parses a Sponge v2 schematic from r.
 //
 // The reader is permissive about both the wrapper shape (real WorldEdit
@@ -115,6 +120,17 @@ func ScanWithInfo(r io.Reader, onInfo schem.InfoHandler, yield schem.BlockHandle
 		}
 		indexToKey[v] = k
 	}
+	indexToResult := make([]translate.Result, len(indexToKey))
+	for i, key := range indexToKey {
+		if key == "" {
+			continue
+		}
+		js, perr := decodePaletteKey(key)
+		if perr != nil {
+			return schem.ScanInfo{}, fmt.Errorf("sponge v2: palette key %q: %w", key, perr)
+		}
+		indexToResult[i] = lookupJavaState(js.Canonical())
+	}
 
 	info := schem.ScanInfo{
 		Format:   schem.FormatSpongeV2,
@@ -143,14 +159,7 @@ func ScanWithInfo(r io.Reader, onInfo schem.InfoHandler, yield schem.BlockHandle
 				if int(idx) >= len(indexToKey) || indexToKey[idx] == "" {
 					return info, fmt.Errorf("sponge v2: at (%d,%d,%d): palette index %d out of range", x, y, z, idx)
 				}
-				key := indexToKey[idx]
-
-				js, perr := palette.Decode(key)
-				if perr != nil {
-					return info, fmt.Errorf("sponge v2: at (%d,%d,%d): palette key %q: %w", x, y, z, key, perr)
-				}
-				canonical := js.Canonical()
-				res := translate.Lookup(canonical)
+				res := indexToResult[idx]
 				if !res.Recognized {
 					info.Unknowns.Counts[res.RawKey]++
 					info.Unknowns.Total++

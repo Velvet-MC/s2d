@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/Velvet-MC/s2d/palette"
 	_ "github.com/df-mc/dragonfly/server/block" // register vanilla blocks for translation
 
 	"github.com/Velvet-MC/s2d/schem"
@@ -96,5 +97,36 @@ func TestRead_MultiPalette(t *testing.T) {
 	if s.Unknowns.Total != 0 {
 		t.Errorf("expected 0 unknowns for vanilla blocks, got %d: %v",
 			s.Unknowns.Total, s.Unknowns.Counts)
+	}
+}
+
+func TestScanDecodesEachPaletteEntryOnce(t *testing.T) {
+	f, err := os.Open("testdata/multi_palette.schem")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
+
+	original := decodePaletteKey
+	defer func() { decodePaletteKey = original }()
+	calls := 0
+	decodePaletteKey = func(key string) (palette.JavaState, error) {
+		calls++
+		return original(key)
+	}
+
+	var blocks int
+	if _, err := Scan(f, func(schem.Block) error {
+		blocks++
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if blocks != 16 {
+		t.Fatalf("blocks = %d, want 16", blocks)
+	}
+	if calls != 4 {
+		t.Fatalf("palette decode calls = %d, want one per palette entry (4)", calls)
 	}
 }
