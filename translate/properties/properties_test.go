@@ -22,6 +22,12 @@ func TestConverters(t *testing.T) {
 		// facing — generic
 		{"facing", "north", "furnace", "direction", int32(2), true},
 		{"facing", "south", "furnace", "direction", int32(0), true},
+		// facing — trapdoors
+		{"facing", "east", "oak_trapdoor", "direction", int32(0), true},
+		{"facing", "north", "oak_trapdoor", "direction", int32(3), true},
+		// facing — wall signs
+		{"facing", "south", "wall_sign", "facing_direction", int32(3), true},
+		{"facing", "east", "wall_sign", "facing_direction", int32(5), true},
 		// half — stairs
 		{"half", "top", "oak_stairs", "upside_down_bit", true, true},
 		{"half", "bottom", "oak_stairs", "upside_down_bit", false, true},

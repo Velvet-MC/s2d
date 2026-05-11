@@ -295,7 +295,7 @@ func translateOne(palette *bedrockPaletteIndex, bedrockIdent string, javaProps m
 	} else {
 		res.Block = MissingBlock()
 	}
-	if waterlogged {
+	if waterlogged || needsWaterLayer(bedrockIdent) {
 		if l, lok := world.BlockByName("minecraft:water", map[string]any{"liquid_depth": int32(0)}); lok {
 			if liq, isLiq := l.(world.Liquid); isLiq {
 				res.Liquid = liq
@@ -303,6 +303,15 @@ func translateOne(palette *bedrockPaletteIndex, bedrockIdent string, javaProps m
 		}
 	}
 	return res
+}
+
+func needsWaterLayer(bedrockIdent string) bool {
+	switch bedrockIdent {
+	case "seagrass", "kelp", "kelp_plant":
+		return true
+	default:
+		return false
+	}
 }
 
 var bedrockIdentifierAliases = map[string]string{

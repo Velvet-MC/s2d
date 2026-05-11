@@ -252,6 +252,81 @@ func TestLookup_PrismBaroqueMissingStates(t *testing.T) {
 	}
 }
 
+func TestLookupPreservesAttachmentDirections(t *testing.T) {
+	tests := []struct {
+		key       string
+		wantName  string
+		wantProps map[string]any
+	}{
+		{
+			key:      "minecraft:oak_trapdoor[facing=east,half=bottom,open=false,powered=false,waterlogged=false]",
+			wantName: "minecraft:trapdoor",
+			wantProps: map[string]any{
+				"direction":       int32(0),
+				"open_bit":        uint8(0),
+				"upside_down_bit": uint8(0),
+			},
+		},
+		{
+			key:      "minecraft:oak_trapdoor[facing=north,half=top,open=true,powered=false,waterlogged=false]",
+			wantName: "minecraft:trapdoor",
+			wantProps: map[string]any{
+				"direction":       int32(3),
+				"open_bit":        uint8(1),
+				"upside_down_bit": uint8(1),
+			},
+		},
+		{
+			key:      "minecraft:oak_wall_sign[facing=south,waterlogged=false]",
+			wantName: "minecraft:wall_sign",
+			wantProps: map[string]any{
+				"facing_direction": int32(3),
+			},
+		},
+		{
+			key:      "minecraft:oak_wall_sign[facing=east,waterlogged=false]",
+			wantName: "minecraft:wall_sign",
+			wantProps: map[string]any{
+				"facing_direction": int32(5),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.key, func(t *testing.T) {
+			res := Lookup(tt.key)
+			if !res.Recognized {
+				t.Fatalf("%s not recognized", tt.key)
+			}
+			if res.BedrockState.Name != tt.wantName {
+				t.Fatalf("%s -> %s, want %s", tt.key, res.BedrockState.Name, tt.wantName)
+			}
+			for k, want := range tt.wantProps {
+				if got := res.BedrockState.Properties[k]; got != want {
+					t.Fatalf("%s property %s = %#v (%T), want %#v (%T)", tt.key, k, got, got, want, want)
+				}
+			}
+		})
+	}
+}
+
+func TestLookupAddsWaterLayerForAquaticPlants(t *testing.T) {
+	for _, key := range []string{
+		"minecraft:seagrass",
+		"minecraft:tall_seagrass[half=lower]",
+		"minecraft:tall_seagrass[half=upper]",
+	} {
+		t.Run(key, func(t *testing.T) {
+			res := Lookup(key)
+			if !res.Recognized {
+				t.Fatalf("%s not recognized", key)
+			}
+			if res.Liquid == nil {
+				t.Fatalf("%s should carry a water liquid layer", key)
+			}
+		})
+	}
+}
+
 func TestLookup_Waterlogged(t *testing.T) {
 	res := Lookup("minecraft:oak_stairs[facing=north,half=bottom,shape=straight,waterlogged=true]")
 	if res.Liquid == nil {

@@ -21,6 +21,9 @@ func Facing(javaValue, bedrockIdent string) (string, any, bool) {
 	if strings.HasSuffix(bedrockIdent, "_button") || bedrockIdent == "wooden_button" || bedrockIdent == "stone_button" {
 		return "facing_direction", blockFaceDirection(javaValue), true
 	}
+	if strings.HasSuffix(bedrockIdent, "_trapdoor") || bedrockIdent == "trapdoor" {
+		return trapdoorDirection(javaValue)
+	}
 	if bedrockIdent == "torch" || strings.HasSuffix(bedrockIdent, "_torch") {
 		return "torch_facing_direction", javaValue, true
 	}
@@ -98,14 +101,28 @@ func wallSignDirection(javaValue string) int32 {
 	switch javaValue {
 	case "north":
 		return 2
-	case "east":
-		return 3
 	case "south":
-		return 4
+		return 3
 	case "west":
+		return 4
+	case "east":
 		return 5
 	}
 	return 2
+}
+
+func trapdoorDirection(javaValue string) (string, any, bool) {
+	switch javaValue {
+	case "east":
+		return "direction", int32(0), true
+	case "west":
+		return "direction", int32(1), true
+	case "south":
+		return "direction", int32(2), true
+	case "north":
+		return "direction", int32(3), true
+	}
+	return "direction", int32(3), true
 }
 
 func blockFaceDirection(javaValue string) int32 {
