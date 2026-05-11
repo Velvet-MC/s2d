@@ -35,6 +35,15 @@ func Facing(javaValue, bedrockIdent string) (string, any, bool) {
 		bedrockIdent == "small_dripleaf_block" {
 		return "minecraft:cardinal_direction", javaValue, true
 	}
+	if bedrockIdent == "big_dripleaf" || bedrockIdent == "lit_pumpkin" || bedrockIdent == "carved_pumpkin" ||
+		bedrockIdent == "pumpkin" {
+		return "minecraft:cardinal_direction", javaValue, true
+	}
+	if bedrockIdent == "melon_stem" || bedrockIdent == "pumpkin_stem" ||
+		bedrockIdent == "piston_arm_collision" || bedrockIdent == "sticky_piston_arm_collision" ||
+		bedrockIdent == "piston" || bedrockIdent == "sticky_piston" {
+		return "facing_direction", blockFaceDirection(javaValue), true
+	}
 	if bedrockIdent == "anvil" {
 		return "minecraft:cardinal_direction", javaValue, true
 	}
@@ -47,7 +56,10 @@ func Facing(javaValue, bedrockIdent string) (string, any, bool) {
 	if strings.HasSuffix(bedrockIdent, "_wall_sign") || bedrockIdent == "wall_sign" || bedrockIdent == "wall_banner" {
 		return "facing_direction", wallSignDirection(javaValue), true
 	}
-	if strings.HasSuffix(bedrockIdent, "_skull") {
+	if strings.HasSuffix(bedrockIdent, "_hanging_sign") {
+		return "facing_direction", blockFaceDirection(javaValue), true
+	}
+	if strings.HasSuffix(bedrockIdent, "_skull") || strings.HasSuffix(bedrockIdent, "_head") {
 		return "facing_direction", wallSignDirection(javaValue), true
 	}
 	switch bedrockIdent {

@@ -52,6 +52,8 @@ var Registry = map[string]Converter{
 	"occupied":    Occupied,
 	"mode":        Mode,
 	"delay":       Delay,
+	"attached":    Attached,
+	"disarmed":    Disarmed,
 }
 
 // boolToBit returns 1 for "true", 0 otherwise.

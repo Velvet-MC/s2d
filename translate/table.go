@@ -97,7 +97,7 @@ func buildTable() {
 
 		if len(propNames) == 0 {
 			canonical := "minecraft:" + jb.Name
-			res := translateOne(bedrockPalette, bedrockIdent, nil, false, ovr)
+			res := translateOne(bedrockPalette, jb.Name, bedrockIdent, nil, false, ovr)
 			res.RawKey = canonical
 			t[canonical] = res
 			continue
@@ -112,7 +112,7 @@ func buildTable() {
 			resolvedIdent := adjustBedrockIdentifier(jb.Name, bedrockIdent, javaProps)
 			canonical := canonicalKey(jb.Name, javaProps)
 			waterlogged := strings.EqualFold(javaProps["waterlogged"], "true")
-			res := translateOne(bedrockPalette, resolvedIdent, javaProps, waterlogged, ovr)
+			res := translateOne(bedrockPalette, jb.Name, resolvedIdent, javaProps, waterlogged, ovr)
 			res.RawKey = canonical
 			t[canonical] = res
 			addLookupAliases(t, jb.Name, javaProps, res)
@@ -155,7 +155,7 @@ func lookupDynamicJavaState(raw string) (Result, bool) {
 	bedrockIdent := baseBedrockIdentifier(js.Name, override{})
 	resolvedIdent := adjustBedrockIdentifier(js.Name, bedrockIdent, js.Props)
 	waterlogged := strings.EqualFold(js.Props["waterlogged"], "true")
-	res := translateOne(bedrockPaletteForLookup, resolvedIdent, js.Props, waterlogged, override{})
+	res := translateOne(bedrockPaletteForLookup, js.Name, resolvedIdent, js.Props, waterlogged, override{})
 	if !res.Recognized {
 		return Result{}, false
 	}
@@ -267,7 +267,7 @@ func canonicalKey(blockName string, props map[string]string) string {
 }
 
 // translateOne resolves a single Java state combination to a Bedrock Result.
-func translateOne(palette *bedrockPaletteIndex, bedrockIdent string, javaProps map[string]string,
+func translateOne(palette *bedrockPaletteIndex, javaName, bedrockIdent string, javaProps map[string]string,
 	waterlogged bool, ovr override) Result {
 
 	bedrockProps := map[string]any{}
@@ -296,6 +296,7 @@ func translateOne(palette *bedrockPaletteIndex, bedrockIdent string, javaProps m
 		}
 		bedrockProps[bp] = bv
 	}
+	applyJavaDerivedBedrockProperties(javaName, bedrockIdent, bedrockProps)
 	applyImplicitBedrockProperties(bedrockIdent, bedrockProps)
 
 	full := "minecraft:" + bedrockIdent
@@ -329,6 +330,9 @@ func baseBedrockIdentifier(javaName string, ovr override) string {
 	if strings.HasPrefix(javaName, "potted_") {
 		return "flower_pot"
 	}
+	if strings.HasSuffix(javaName, "_wall_hanging_sign") {
+		return strings.TrimSuffix(javaName, "_wall_hanging_sign") + "_hanging_sign"
+	}
 	if strings.HasSuffix(javaName, "_wall_banner") {
 		return "wall_banner"
 	}
@@ -340,6 +344,9 @@ func baseBedrockIdentifier(javaName string, ovr override) string {
 	}
 	if strings.HasSuffix(javaName, "_wall_skull") {
 		return strings.TrimSuffix(javaName, "_wall_skull") + "_skull"
+	}
+	if strings.HasSuffix(javaName, "_wall_head") {
+		return strings.TrimSuffix(javaName, "_wall_head") + "_head"
 	}
 	return javaName
 }
@@ -426,6 +433,29 @@ var bedrockIdentifierAliases = map[string]string{
 	"comparator":                   "unpowered_comparator",
 	"repeater":                     "unpowered_repeater",
 	"cave_vines_plant":             "cave_vines",
+	"attached_melon_stem":          "melon_stem",
+	"attached_pumpkin_stem":        "pumpkin_stem",
+	"bamboo_sign":                  "bamboo_standing_sign",
+	"bamboo_wall_sign":             "bamboo_wall_sign",
+	"big_dripleaf_stem":            "big_dripleaf",
+	"frogspawn":                    "frog_spawn",
+	"jack_o_lantern":               "lit_pumpkin",
+	"kelp_plant":                   "kelp",
+	"lava_cauldron":                "cauldron",
+	"moving_piston":                "moving_block",
+	"nether_bricks":                "nether_brick",
+	"nether_quartz_ore":            "quartz_ore",
+	"piston_head":                  "piston_arm_collision",
+	"powder_snow_cauldron":         "cauldron",
+	"powered_rail":                 "golden_rail",
+	"redstone_wall_torch":          "redstone_torch",
+	"shulker_box":                  "undyed_shulker_box",
+	"slime_block":                  "slime",
+	"soul_wall_torch":              "soul_torch",
+	"tripwire":                     "trip_wire",
+	"twisting_vines_plant":         "twisting_vines",
+	"waxed_copper_block":           "waxed_copper",
+	"weeping_vines_plant":          "weeping_vines",
 }
 
 func adjustBedrockIdentifier(javaName, bedrockIdent string, javaProps map[string]string) string {
@@ -445,6 +475,11 @@ func adjustBedrockIdentifier(javaName, bedrockIdent string, javaProps map[string
 			return "cave_vines_body_with_berries"
 		}
 		return "cave_vines"
+	case "redstone_wall_torch":
+		if javaProps["lit"] == "false" {
+			return "unlit_redstone_torch"
+		}
+		return "redstone_torch"
 	}
 	if javaName == "light" {
 		return fmt.Sprintf("light_block_%s", javaProps["level"])
@@ -464,6 +499,30 @@ func adjustBedrockIdentifier(javaName, bedrockIdent string, javaProps map[string
 		return strings.TrimSuffix(bedrockIdent, "_slab") + "_double_slab"
 	}
 	return bedrockIdent
+}
+
+func applyJavaDerivedBedrockProperties(javaName, bedrockIdent string, props map[string]any) {
+	switch javaName {
+	case "lava_cauldron":
+		props["cauldron_liquid"] = "lava"
+		if _, ok := props["fill_level"]; !ok {
+			props["fill_level"] = int32(6)
+		}
+	case "powder_snow_cauldron":
+		props["cauldron_liquid"] = "powder_snow"
+	case "tripwire":
+		if _, ok := props["suspended_bit"]; !ok {
+			props["suspended_bit"] = uint8(0)
+		}
+	}
+	if strings.HasSuffix(bedrockIdent, "_hanging_sign") {
+		if strings.HasSuffix(javaName, "_wall_hanging_sign") {
+			props["attached_bit"] = uint8(1)
+		}
+		if _, ok := props["hanging"]; !ok {
+			props["hanging"] = uint8(1)
+		}
+	}
 }
 
 func applyImplicitBedrockProperties(bedrockIdent string, props map[string]any) {

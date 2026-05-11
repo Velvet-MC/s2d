@@ -10,6 +10,9 @@ func Powered(javaValue, bedrockIdent string) (string, any, bool) {
 	if bedrockIdent == "unpowered_repeater" || bedrockIdent == "powered_repeater" {
 		return "", nil, false
 	}
+	if bedrockIdent == "golden_rail" || bedrockIdent == "detector_rail" || bedrockIdent == "activator_rail" {
+		return "rail_data_bit", boolToBit(javaValue), true
+	}
 	if strings.HasSuffix(bedrockIdent, "_door") || bedrockIdent == "wooden_door" || bedrockIdent == "iron_door" ||
 		strings.HasSuffix(bedrockIdent, "_trapdoor") || bedrockIdent == "trapdoor" || bedrockIdent == "iron_trapdoor" ||
 		strings.HasSuffix(bedrockIdent, "_fence_gate") || bedrockIdent == "fence_gate" || bedrockIdent == "noteblock" {
