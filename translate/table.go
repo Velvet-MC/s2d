@@ -291,11 +291,7 @@ func translateOne(palette *bedrockPaletteIndex, bedrockIdent string, javaProps m
 	}
 	res := Result{BedrockState: state.Clone(), Recognized: ok}
 	if ok {
-		if b, bok := world.BlockByName(state.Name, state.Properties); bok {
-			res.Block = b
-		} else {
-			res.Block = MissingBlock()
-		}
+		res.Block = NewStateBlock(state)
 	} else {
 		res.Block = MissingBlock()
 	}

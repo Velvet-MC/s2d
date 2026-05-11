@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	_ "github.com/df-mc/dragonfly/server/block" // register vanilla blocks for tests
+	"github.com/df-mc/dragonfly/server/block/cube"
 	"github.com/df-mc/dragonfly/server/world"
 )
 
@@ -75,5 +76,21 @@ func TestLookupReturnsCanonicalBedrockStateProperties(t *testing.T) {
 	name, _ := got.Block.EncodeBlock()
 	if name != "minecraft:oak_leaves" {
 		t.Fatalf("Block encodes as %q, want minecraft:oak_leaves", name)
+	}
+}
+
+func TestLookupReturnsInertBlockForTickingBedrockState(t *testing.T) {
+	got := Lookup("minecraft:smoker[facing=north,lit=false]")
+	if !got.Recognized {
+		t.Fatalf("smoker should be recognized as a Bedrock palette state")
+	}
+	name, _ := got.Block.EncodeBlock()
+	if name != "minecraft:smoker" {
+		t.Fatalf("Block encodes as %q, want minecraft:smoker", name)
+	}
+	if _, ticking := got.Block.(interface {
+		Tick(int64, cube.Pos, *world.Tx)
+	}); ticking {
+		t.Fatalf("schematic block %T must be inert, not a random ticker", got.Block)
 	}
 }
