@@ -50,10 +50,15 @@ func TestConverters(t *testing.T) {
 		// power
 		{"power", "10", "redstone_wire", "redstone_signal", int32(10), true},
 		// slab type
-		{"type", "top", "oak_slab", "top_slot_bit", byte(1), true},
+		{"type", "top", "oak_slab", "minecraft:vertical_half", "top", true},
+		{"type", "single", "chest", "", nil, false},
 		// walls
 		{"up", "true", "cobblestone_wall", "wall_post_bit", byte(1), true},
 		{"north", "low", "cobblestone_wall", "wall_connection_type_north", "short", true},
+		// arena-specific decorative blocks.
+		{"shape", "north_south", "rail", "rail_direction", int32(0), true},
+		{"hanging", "true", "lantern", "hanging", true, true},
+		{"face", "ceiling", "grindstone", "attachment", "hanging", true},
 	}
 	for _, c := range cases {
 		t.Run(c.prop+"/"+c.javaValue+"/"+c.bedrockId, func(t *testing.T) {

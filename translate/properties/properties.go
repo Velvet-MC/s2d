@@ -45,6 +45,9 @@ var Registry = map[string]Converter{
 	"west":        WallWest,
 	"in_wall":     InWall,
 	"rotation":    Rotation,
+	"shape":       Shape,
+	"hanging":     Hanging,
+	"face":        Face,
 }
 
 // boolToBit returns 1 for "true", 0 otherwise.

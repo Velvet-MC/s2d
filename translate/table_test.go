@@ -78,6 +78,110 @@ func TestLookup_CommonArenaBlocks(t *testing.T) {
 		wantName string
 	}{
 		{
+			key:      "minecraft:gray_glazed_terracotta[facing=west]",
+			wantName: "minecraft:gray_glazed_terracotta",
+		},
+		{
+			key:      "minecraft:blue_glazed_terracotta[facing=west]",
+			wantName: "minecraft:blue_glazed_terracotta",
+		},
+		{
+			key:      "minecraft:bedrock",
+			wantName: "minecraft:bedrock",
+		},
+		{
+			key:      "minecraft:terracotta",
+			wantName: "minecraft:hardened_clay",
+		},
+		{
+			key:      "minecraft:smooth_quartz",
+			wantName: "minecraft:smooth_quartz",
+		},
+		{
+			key:      "minecraft:polished_diorite_slab[type=bottom,waterlogged=false]",
+			wantName: "minecraft:polished_diorite_slab",
+		},
+		{
+			key:      "minecraft:smooth_stone_slab[type=bottom,waterlogged=false]",
+			wantName: "minecraft:smooth_stone_slab",
+		},
+		{
+			key:      "minecraft:stone_slab[type=double,waterlogged=false]",
+			wantName: "minecraft:smooth_stone_double_slab",
+		},
+		{
+			key:      "minecraft:deepslate_brick_slab[type=top,waterlogged=false]",
+			wantName: "minecraft:deepslate_brick_slab",
+		},
+		{
+			key:      "minecraft:redstone_ore[lit=false]",
+			wantName: "minecraft:redstone_ore",
+		},
+		{
+			key:      "minecraft:deepslate_redstone_ore[lit=false]",
+			wantName: "minecraft:deepslate_redstone_ore",
+		},
+		{
+			key:      "minecraft:cobweb",
+			wantName: "minecraft:web",
+		},
+		{
+			key:      "minecraft:dead_bush",
+			wantName: "minecraft:deadbush",
+		},
+		{
+			key:      "minecraft:magma_block",
+			wantName: "minecraft:magma",
+		},
+		{
+			key:      "minecraft:bricks",
+			wantName: "minecraft:brick_block",
+		},
+		{
+			key:      "minecraft:wall_torch[facing=west]",
+			wantName: "minecraft:torch",
+		},
+		{
+			key:      "minecraft:chest[facing=south,type=single,waterlogged=false]",
+			wantName: "minecraft:chest",
+		},
+		{
+			key:      "minecraft:chain[axis=y,waterlogged=false]",
+			wantName: "minecraft:iron_chain",
+		},
+		{
+			key:      "minecraft:lantern[hanging=true,waterlogged=false]",
+			wantName: "minecraft:lantern",
+		},
+		{
+			key:      "minecraft:glow_lichen[down=false,east=true,north=false,south=false,up=false,waterlogged=false,west=false]",
+			wantName: "minecraft:glow_lichen",
+		},
+		{
+			key:      "minecraft:spawner",
+			wantName: "minecraft:mob_spawner",
+		},
+		{
+			key:      "minecraft:bubble_column[drag=true]",
+			wantName: "minecraft:water",
+		},
+		{
+			key:      "minecraft:birch_sapling[stage=1]",
+			wantName: "minecraft:short_grass",
+		},
+		{
+			key:      "minecraft:anvil[facing=north]",
+			wantName: "minecraft:anvil",
+		},
+		{
+			key:      "minecraft:grindstone[face=ceiling,facing=west]",
+			wantName: "minecraft:grindstone",
+		},
+		{
+			key:      "minecraft:cartography_table",
+			wantName: "minecraft:cartography_table",
+		},
+		{
 			key:      "minecraft:stone_brick_wall[east=low,north=none,south=tall,up=true,waterlogged=false,west=none]",
 			wantName: "minecraft:stone_brick_wall",
 		},

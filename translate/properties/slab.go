@@ -1,11 +1,14 @@
 package properties
 
 // SlabType handles Java's slab "type" property. "double" requires an
-// identifier swap (oak_slab → double_oak_slab on Bedrock); the table
-// builder honors that via overrides.json. Here we only handle top/bottom.
+// identifier swap (oak_slab → oak_double_slab on Bedrock); the table builder
+// handles that before resolving the block. Here we only set the vertical half.
 func SlabType(javaValue, bedrockIdent string) (string, any, bool) {
-	if javaValue == "top" {
-		return "top_slot_bit", byte(1), true
+	if len(bedrockIdent) < len("_slab") || bedrockIdent[len(bedrockIdent)-len("_slab"):] != "_slab" {
+		return "", nil, false
 	}
-	return "top_slot_bit", byte(0), true
+	if javaValue == "top" {
+		return "minecraft:vertical_half", "top", true
+	}
+	return "minecraft:vertical_half", "bottom", true
 }

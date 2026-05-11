@@ -113,9 +113,10 @@ func buildTable() {
 			for i, pn := range propNames {
 				javaProps[pn] = propValues[i][idx[i]]
 			}
+			resolvedIdent := adjustBedrockIdentifier(jb.Name, bedrockIdent, javaProps)
 			canonical := canonicalKey(jb.Name, javaProps)
 			waterlogged := strings.EqualFold(javaProps["waterlogged"], "true")
-			res := translateOne(jb.Name, bedrockIdent, javaProps, waterlogged, ovr)
+			res := translateOne(jb.Name, resolvedIdent, javaProps, waterlogged, ovr)
 			res.RawKey = canonical
 			t[canonical] = res
 			addLookupAliases(t, jb.Name, javaProps, res)
@@ -253,12 +254,18 @@ func translateOne(javaName, bedrockIdent string, javaProps map[string]string,
 	waterlogged bool, ovr override) Result {
 
 	bedrockProps := map[string]any{}
+	if bedrockIdent == "glow_lichen" {
+		bedrockProps["multi_face_direction_bits"] = glowLichenFaces(javaProps)
+	}
 	skip := map[string]struct{}{}
 	for _, sp := range ovr.SkipProperties {
 		skip[sp] = struct{}{}
 	}
 
 	for k, v := range javaProps {
+		if bedrockIdent == "glow_lichen" && isGlowLichenFace(k) {
+			continue
+		}
 		if _, drop := skip[k]; drop {
 			continue
 		}
@@ -303,10 +310,15 @@ func translateOne(javaName, bedrockIdent string, javaProps map[string]string,
 }
 
 var bedrockIdentifierAliases = map[string]string{
+	"chain":                   "iron_chain",
 	"cobblestone_stairs":      "stone_stairs",
+	"cobweb":                  "web",
+	"dead_bush":               "deadbush",
+	"bubble_column":           "water",
 	"end_stone_brick_stairs":  "end_brick_stairs",
 	"flowering_azalea_leaves": "azalea_leaves_flowered",
 	"grass":                   "short_grass",
+	"magma_block":             "magma",
 	"note_block":              "noteblock",
 	"oak_button":              "wooden_button",
 	"oak_door":                "wooden_door",
@@ -334,10 +346,40 @@ var bedrockIdentifierAliases = map[string]string{
 	"warped_sign":             "warped_standing_sign",
 	"warped_wall_sign":        "warped_wall_sign",
 	"prismarine_brick_stairs": "prismarine_bricks_stairs",
+	"stone_slab":              "smooth_stone_slab",
+	"spawner":                 "mob_spawner",
+	"terracotta":              "hardened_clay",
+	"wall_torch":              "torch",
+	"bricks":                  "brick_block",
+	"budding_amethyst":        "amethyst_block",
+	"pointed_dripstone":       "dripstone_block",
+	"oak_sapling":             "short_grass",
+	"spruce_sapling":          "short_grass",
+	"birch_sapling":           "short_grass",
+	"jungle_sapling":          "short_grass",
+	"acacia_sapling":          "short_grass",
+	"dark_oak_sapling":        "short_grass",
+	"mangrove_propagule":      "short_grass",
+	"cherry_sapling":          "short_grass",
 	"bamboo_stairs":           "oak_stairs",
 	"bamboo_mosaic_stairs":    "oak_stairs",
 	"iron_trapdoor":           "trapdoor",
 	"iron_door":               "wooden_door",
+}
+
+func adjustBedrockIdentifier(javaName, bedrockIdent string, javaProps map[string]string) string {
+	if javaProps["lit"] == "true" {
+		switch javaName {
+		case "redstone_ore":
+			return "lit_redstone_ore"
+		case "deepslate_redstone_ore":
+			return "lit_deepslate_redstone_ore"
+		}
+	}
+	if javaProps["type"] == "double" && strings.HasSuffix(bedrockIdent, "_slab") {
+		return strings.TrimSuffix(bedrockIdent, "_slab") + "_double_slab"
+	}
+	return bedrockIdent
 }
 
 func applyImplicitBedrockProperties(bedrockIdent string, props map[string]any) {
@@ -346,6 +388,59 @@ func applyImplicitBedrockProperties(bedrockIdent string, props map[string]any) {
 			props["update_bit"] = false
 		}
 	}
+	switch bedrockIdent {
+	case "bedrock":
+		if _, ok := props["infiniburn_bit"]; !ok {
+			props["infiniburn_bit"] = false
+		}
+	case "smooth_quartz", "quartz_block", "chiseled_quartz_block":
+		if _, ok := props["pillar_axis"]; !ok {
+			props["pillar_axis"] = "y"
+		}
+	case "bone_block":
+		if _, ok := props["deprecated"]; !ok {
+			props["deprecated"] = int32(0)
+		}
+	case "torch":
+		if _, ok := props["torch_facing_direction"]; !ok {
+			props["torch_facing_direction"] = "top"
+		}
+	case "water":
+		if _, ok := props["liquid_depth"]; !ok {
+			props["liquid_depth"] = int32(0)
+		}
+	}
+}
+
+func glowLichenFaces(javaProps map[string]string) int32 {
+	var bits int32
+	if javaProps["down"] == "true" {
+		bits |= 1
+	}
+	if javaProps["up"] == "true" {
+		bits |= 2
+	}
+	if javaProps["north"] == "true" {
+		bits |= 4
+	}
+	if javaProps["south"] == "true" {
+		bits |= 8
+	}
+	if javaProps["west"] == "true" {
+		bits |= 16
+	}
+	if javaProps["east"] == "true" {
+		bits |= 32
+	}
+	return bits
+}
+
+func isGlowLichenFace(prop string) bool {
+	switch prop {
+	case "down", "up", "north", "south", "west", "east":
+		return true
+	}
+	return false
 }
 
 func usableTranslatedBlock(b world.Block) bool {
@@ -353,9 +448,30 @@ func usableTranslatedBlock(b world.Block) bool {
 		return false
 	}
 	if nbtBlock, ok := b.(world.NBTer); ok && nbtBlock.EncodeNBT() == nil {
-		return false
+		name, _ := b.EncodeBlock()
+		return allowNilNBTBlock(name)
 	}
 	return true
+}
+
+func allowNilNBTBlock(name string) bool {
+	switch name {
+	case "minecraft:redstone_ore",
+		"minecraft:lit_redstone_ore",
+		"minecraft:deepslate_redstone_ore",
+		"minecraft:lit_deepslate_redstone_ore",
+		"minecraft:stone_button",
+		"minecraft:rail",
+		"minecraft:glow_lichen",
+		"minecraft:mob_spawner",
+		"minecraft:cartography_table",
+		"minecraft:amethyst_cluster",
+		"minecraft:small_amethyst_bud",
+		"minecraft:medium_amethyst_bud",
+		"minecraft:large_amethyst_bud":
+		return true
+	}
+	return false
 }
 
 // loadBedrockPalette decodes Geyser's gzipped block_palette.<ver>.nbt. The

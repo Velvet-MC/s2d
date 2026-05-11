@@ -15,6 +15,24 @@ func Facing(javaValue, bedrockIdent string) (string, any, bool) {
 		strings.HasSuffix(bedrockIdent, "_fence_gate") || bedrockIdent == "fence_gate" {
 		return "minecraft:cardinal_direction", javaValue, true
 	}
+	if strings.HasSuffix(bedrockIdent, "_glazed_terracotta") {
+		return "facing_direction", blockFaceDirection(javaValue), true
+	}
+	if strings.HasSuffix(bedrockIdent, "_button") || bedrockIdent == "wooden_button" || bedrockIdent == "stone_button" {
+		return "facing_direction", blockFaceDirection(javaValue), true
+	}
+	if bedrockIdent == "torch" || strings.HasSuffix(bedrockIdent, "_torch") {
+		return "torch_facing_direction", javaValue, true
+	}
+	if bedrockIdent == "chest" || bedrockIdent == "trapped_chest" || bedrockIdent == "ender_chest" {
+		return "minecraft:cardinal_direction", javaValue, true
+	}
+	if bedrockIdent == "anvil" {
+		return "minecraft:cardinal_direction", javaValue, true
+	}
+	if strings.Contains(bedrockIdent, "amethyst") && (strings.HasSuffix(bedrockIdent, "_bud") || strings.HasSuffix(bedrockIdent, "_cluster")) {
+		return "minecraft:block_face", javaValue, true
+	}
 	if strings.HasSuffix(bedrockIdent, "_stairs") {
 		return stairsDirection(javaValue)
 	}
@@ -85,6 +103,24 @@ func wallSignDirection(javaValue string) int32 {
 	case "south":
 		return 4
 	case "west":
+		return 5
+	}
+	return 2
+}
+
+func blockFaceDirection(javaValue string) int32 {
+	switch javaValue {
+	case "down":
+		return 0
+	case "up":
+		return 1
+	case "north":
+		return 2
+	case "south":
+		return 3
+	case "west":
+		return 4
+	case "east":
 		return 5
 	}
 	return 2
