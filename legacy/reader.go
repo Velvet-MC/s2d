@@ -25,46 +25,75 @@ type rawLegacy struct {
 
 // Read parses a legacy MCEdit `.schematic` from r.
 func Read(r io.Reader) (*schem.Schematic, error) {
+	var blocks []schem.Block
+	info, err := Scan(r, func(b schem.Block) error {
+		blocks = append(blocks, b)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &schem.Schematic{
+		Format:   info.Format,
+		Width:    info.Width,
+		Height:   info.Height,
+		Length:   info.Length,
+		Offset:   info.Offset,
+		Blocks:   blocks,
+		Unknowns: info.Unknowns,
+	}, nil
+}
+
+// Scan parses a legacy MCEdit `.schematic` from r and calls yield for each
+// translated block without materialising a full schem.Schematic.Blocks slice.
+func Scan(r io.Reader, yield schem.BlockHandler) (schem.ScanInfo, error) {
+	return ScanWithInfo(r, nil, yield)
+}
+
+// ScanWithInfo parses a legacy MCEdit `.schematic` from r, calls onInfo once
+// after dimensions are known, then calls yield for each translated block.
+func ScanWithInfo(r io.Reader, onInfo schem.InfoHandler, yield schem.BlockHandler) (schem.ScanInfo, error) {
 	gz, err := gzip.NewReader(r)
 	if err != nil {
-		return nil, fmt.Errorf("legacy: gzip: %w", err)
+		return schem.ScanInfo{}, fmt.Errorf("legacy: gzip: %w", err)
 	}
 	defer func() { _ = gz.Close() }()
 	body, err := io.ReadAll(gz)
 	if err != nil {
-		return nil, fmt.Errorf("legacy: read: %w", err)
+		return schem.ScanInfo{}, fmt.Errorf("legacy: read: %w", err)
 	}
 
 	var raw rawLegacy
 	if err := nbt.UnmarshalEncoding(body, &raw, nbt.BigEndian); err != nil {
-		return nil, fmt.Errorf("legacy: nbt: %w", err)
+		return schem.ScanInfo{}, fmt.Errorf("legacy: nbt: %w", err)
 	}
 	if raw.Materials != "" && raw.Materials != "Alpha" {
-		return nil, fmt.Errorf("legacy: unsupported Materials %q (expect Alpha for Java)", raw.Materials)
+		return schem.ScanInfo{}, fmt.Errorf("legacy: unsupported Materials %q (expect Alpha for Java)", raw.Materials)
 	}
 	if raw.Width <= 0 || raw.Height <= 0 || raw.Length <= 0 {
-		return nil, fmt.Errorf("legacy: invalid dimensions %dx%dx%d",
-			raw.Width, raw.Height, raw.Length)
+		return schem.ScanInfo{}, fmt.Errorf("legacy: invalid dimensions %dx%dx%d", raw.Width, raw.Height, raw.Length)
 	}
 
 	w, h, l := int(raw.Width), int(raw.Height), int(raw.Length)
 	total := w * h * l
 	if len(raw.Blocks) != total {
-		return nil, fmt.Errorf("legacy: Blocks length %d != %dx%dx%d=%d",
-			len(raw.Blocks), w, h, l, total)
+		return schem.ScanInfo{}, fmt.Errorf("legacy: Blocks length %d != %dx%dx%d=%d", len(raw.Blocks), w, h, l, total)
 	}
 	if len(raw.Data) != total {
-		return nil, fmt.Errorf("legacy: Data length %d != %dx%dx%d=%d",
-			len(raw.Data), w, h, l, total)
+		return schem.ScanInfo{}, fmt.Errorf("legacy: Data length %d != %dx%dx%d=%d", len(raw.Data), w, h, l, total)
 	}
 
-	out := &schem.Schematic{
+	info := schem.ScanInfo{
 		Format:   schem.FormatLegacy,
 		Width:    w,
 		Height:   h,
 		Length:   l,
-		Blocks:   make([]schem.Block, 0, total),
 		Unknowns: schem.UnknownReport{Counts: map[string]int{}},
+	}
+	if onInfo != nil {
+		if err := onInfo(info); err != nil {
+			return info, fmt.Errorf("legacy: info: %w", err)
+		}
 	}
 
 	for y := 0; y < h; y++ {
@@ -96,42 +125,41 @@ func Read(r io.Reader) (*schem.Schematic, error) {
 					// fills the cell.
 					res := translate.Lookup("minecraft:air")
 					if !res.Recognized {
-						out.Unknowns.Counts["minecraft:air"]++
-						out.Unknowns.Total++
+						info.Unknowns.Counts["minecraft:air"]++
+						info.Unknowns.Total++
 					}
-					out.Blocks = append(out.Blocks, schem.Block{
-						Pos: [3]int{x, y, z}, Block: res.Block, Liquid: res.Liquid,
-					})
+					if err := yield(schem.Block{Pos: [3]int{x, y, z}, Block: res.Block, Liquid: res.Liquid}); err != nil {
+						return info, fmt.Errorf("legacy: yield at (%d,%d,%d): %w", x, y, z, err)
+					}
 					continue
 				}
 
 				key, ok := Lookup(id, data)
 				if !ok {
 					rawKey := fmt.Sprintf("legacy:%d:%d", id, data)
-					out.Unknowns.Counts[rawKey]++
-					out.Unknowns.Total++
-					out.Blocks = append(out.Blocks, schem.Block{
-						Pos: [3]int{x, y, z}, Block: translate.MissingBlock(),
-					})
+					info.Unknowns.Counts[rawKey]++
+					info.Unknowns.Total++
+					if err := yield(schem.Block{Pos: [3]int{x, y, z}, Block: translate.MissingBlock()}); err != nil {
+						return info, fmt.Errorf("legacy: yield at (%d,%d,%d): %w", x, y, z, err)
+					}
 					continue
 				}
 
 				js, perr := palette.Decode(key)
 				if perr != nil {
-					return nil, fmt.Errorf("legacy: at (%d,%d,%d): decoding %q: %w",
-						x, y, z, key, perr)
+					return info, fmt.Errorf("legacy: at (%d,%d,%d): decoding %q: %w", x, y, z, key, perr)
 				}
 				canonical := js.Canonical()
 				res := translate.Lookup(canonical)
 				if !res.Recognized {
-					out.Unknowns.Counts[res.RawKey]++
-					out.Unknowns.Total++
+					info.Unknowns.Counts[res.RawKey]++
+					info.Unknowns.Total++
 				}
-				out.Blocks = append(out.Blocks, schem.Block{
-					Pos: [3]int{x, y, z}, Block: res.Block, Liquid: res.Liquid,
-				})
+				if err := yield(schem.Block{Pos: [3]int{x, y, z}, Block: res.Block, Liquid: res.Liquid}); err != nil {
+					return info, fmt.Errorf("legacy: yield at (%d,%d,%d): %w", x, y, z, err)
+				}
 			}
 		}
 	}
-	return out, nil
+	return info, nil
 }

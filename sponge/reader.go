@@ -26,19 +26,47 @@ import (
 // BlockEntities, Entities, biome data) which are accepted and silently
 // ignored in v1.0.
 func Read(r io.Reader) (*schem.Schematic, error) {
+	var blocks []schem.Block
+	info, err := Scan(r, func(b schem.Block) error {
+		blocks = append(blocks, b)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &schem.Schematic{
+		Format:   info.Format,
+		Width:    info.Width,
+		Height:   info.Height,
+		Length:   info.Length,
+		Offset:   info.Offset,
+		Blocks:   blocks,
+		Unknowns: info.Unknowns,
+	}, nil
+}
+
+// Scan parses a Sponge v2 schematic from r and calls yield for each translated
+// block without materialising a full schem.Schematic.Blocks slice.
+func Scan(r io.Reader, yield schem.BlockHandler) (schem.ScanInfo, error) {
+	return ScanWithInfo(r, nil, yield)
+}
+
+// ScanWithInfo parses a Sponge v2 schematic from r, calls onInfo once after
+// dimensions are known, then calls yield for each translated block.
+func ScanWithInfo(r io.Reader, onInfo schem.InfoHandler, yield schem.BlockHandler) (schem.ScanInfo, error) {
 	gz, err := gzip.NewReader(r)
 	if err != nil {
-		return nil, fmt.Errorf("sponge v2: gzip: %w", err)
+		return schem.ScanInfo{}, fmt.Errorf("sponge v2: gzip: %w", err)
 	}
 	defer func() { _ = gz.Close() }()
 	body, err := io.ReadAll(gz)
 	if err != nil {
-		return nil, fmt.Errorf("sponge v2: read: %w", err)
+		return schem.ScanInfo{}, fmt.Errorf("sponge v2: read: %w", err)
 	}
 
 	root, err := decodePermissive(body)
 	if err != nil {
-		return nil, fmt.Errorf("sponge v2: nbt: %w", err)
+		return schem.ScanInfo{}, fmt.Errorf("sponge v2: nbt: %w", err)
 	}
 
 	// Real WorldEdit files wrap the schematic in a top-level "Schematic"
@@ -49,29 +77,28 @@ func Read(r io.Reader) (*schem.Schematic, error) {
 
 	version, _ := asInt32(root["Version"])
 	if version != 2 {
-		return nil, fmt.Errorf("sponge v2: version %d unsupported in v1.0", version)
+		return schem.ScanInfo{}, fmt.Errorf("sponge v2: version %d unsupported in v1.0", version)
 	}
 
 	width, _ := asInt32(root["Width"])
 	height, _ := asInt32(root["Height"])
 	length, _ := asInt32(root["Length"])
 	if width <= 0 || height <= 0 || length <= 0 {
-		return nil, fmt.Errorf("sponge v2: invalid dimensions %dx%dx%d", width, height, length)
+		return schem.ScanInfo{}, fmt.Errorf("sponge v2: invalid dimensions %dx%dx%d", width, height, length)
 	}
 
 	rawPalette, ok := root["Palette"].(map[string]any)
 	if !ok || len(rawPalette) == 0 {
-		return nil, fmt.Errorf("sponge v2: missing palette")
+		return schem.ScanInfo{}, fmt.Errorf("sponge v2: missing palette")
 	}
 	blockData, err := asByteSlice(root["BlockData"])
 	if err != nil || len(blockData) == 0 {
-		return nil, fmt.Errorf("sponge v2: missing or invalid BlockData")
+		return schem.ScanInfo{}, fmt.Errorf("sponge v2: missing or invalid BlockData")
 	}
 
 	w, h, l := int(uint16(width)), int(uint16(height)), int(uint16(length))
-	totalCells := w * h * l
 
-	// Build index→key lookup. The palette map is keyed by block name with
+	// Build index-to-key lookup. The palette map is keyed by block name with
 	// palette index as value. Build a slice indexed by palette index.
 	highest := int32(-1)
 	for _, anyV := range rawPalette {
@@ -84,21 +111,25 @@ func Read(r io.Reader) (*schem.Schematic, error) {
 	for k, anyV := range rawPalette {
 		v, _ := asInt32(anyV)
 		if v < 0 || int(v) >= len(indexToKey) {
-			return nil, fmt.Errorf("sponge v2: palette index %d out of range", v)
+			return schem.ScanInfo{}, fmt.Errorf("sponge v2: palette index %d out of range", v)
 		}
 		indexToKey[v] = k
 	}
 
-	out := &schem.Schematic{
+	info := schem.ScanInfo{
 		Format:   schem.FormatSpongeV2,
 		Width:    w,
 		Height:   h,
 		Length:   l,
-		Blocks:   make([]schem.Block, 0, totalCells),
 		Unknowns: schem.UnknownReport{Counts: map[string]int{}},
 	}
 	if off, err := asInt32Slice(root["Offset"]); err == nil && len(off) == 3 {
-		out.Offset = [3]int{int(off[0]), int(off[1]), int(off[2])}
+		info.Offset = [3]int{int(off[0]), int(off[1]), int(off[2])}
+	}
+	if onInfo != nil {
+		if err := onInfo(info); err != nil {
+			return info, fmt.Errorf("sponge v2: info: %w", err)
+		}
 	}
 
 	br := bytes.NewReader(blockData)
@@ -107,32 +138,30 @@ func Read(r io.Reader) (*schem.Schematic, error) {
 			for x := 0; x < w; x++ {
 				idx, _, err := readVarint(br)
 				if err != nil {
-					return nil, fmt.Errorf("sponge v2: varint at (%d,%d,%d): %w", x, y, z, err)
+					return info, fmt.Errorf("sponge v2: varint at (%d,%d,%d): %w", x, y, z, err)
 				}
 				if int(idx) >= len(indexToKey) || indexToKey[idx] == "" {
-					return nil, fmt.Errorf("sponge v2: at (%d,%d,%d): palette index %d out of range",
-						x, y, z, idx)
+					return info, fmt.Errorf("sponge v2: at (%d,%d,%d): palette index %d out of range", x, y, z, idx)
 				}
 				key := indexToKey[idx]
 
 				js, perr := palette.Decode(key)
 				if perr != nil {
-					return nil, fmt.Errorf("sponge v2: at (%d,%d,%d): palette key %q: %w",
-						x, y, z, key, perr)
+					return info, fmt.Errorf("sponge v2: at (%d,%d,%d): palette key %q: %w", x, y, z, key, perr)
 				}
 				canonical := js.Canonical()
 				res := translate.Lookup(canonical)
 				if !res.Recognized {
-					out.Unknowns.Counts[res.RawKey]++
-					out.Unknowns.Total++
+					info.Unknowns.Counts[res.RawKey]++
+					info.Unknowns.Total++
 				}
-				out.Blocks = append(out.Blocks, schem.Block{
-					Pos: [3]int{x, y, z}, Block: res.Block, Liquid: res.Liquid,
-				})
+				if err := yield(schem.Block{Pos: [3]int{x, y, z}, Block: res.Block, Liquid: res.Liquid}); err != nil {
+					return info, fmt.Errorf("sponge v2: yield at (%d,%d,%d): %w", x, y, z, err)
+				}
 			}
 		}
 	}
-	return out, nil
+	return info, nil
 }
 
 // decodePermissive decodes Java big-endian NBT into a generic map so the

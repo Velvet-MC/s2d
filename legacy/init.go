@@ -15,6 +15,9 @@ func init() {
 		Read: func(r io.Reader) (*schem.Schematic, error) {
 			return Read(r)
 		},
+		Scan: func(r io.Reader, onInfo schem.InfoHandler, yield schem.BlockHandler) (schem.ScanInfo, error) {
+			return ScanWithInfo(r, onInfo, yield)
+		},
 	})
 }
 

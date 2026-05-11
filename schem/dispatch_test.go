@@ -74,6 +74,45 @@ func TestEndToEnd_SpongeMultiPalette(t *testing.T) {
 	}
 }
 
+func TestScan_SpongeMultiPalette(t *testing.T) {
+	f, err := os.Open("testdata/multi_palette.schem")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
+
+	var blocks []schem.Block
+	info, err := schem.Scan(f.Name(), f, func(b schem.Block) error {
+		blocks = append(blocks, b)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("Scan: %v", err)
+	}
+
+	if info.Format != schem.FormatSpongeV2 {
+		t.Errorf("format: %q", info.Format)
+	}
+	if info.Width != 4 || info.Height != 1 || info.Length != 4 {
+		t.Errorf("dimensions: %dx%dx%d, want 4x1x4", info.Width, info.Height, info.Length)
+	}
+	if len(blocks) != 16 {
+		t.Fatalf("blocks: %d", len(blocks))
+	}
+	wantNames := []string{
+		"minecraft:stone",
+		"minecraft:dirt",
+		"minecraft:oak_planks",
+		"minecraft:diamond_block",
+	}
+	for i, want := range wantNames {
+		got, _ := blocks[i].Block.EncodeBlock()
+		if got != want {
+			t.Errorf("blocks[%d]: got %q want %q", i, got, want)
+		}
+	}
+}
+
 func TestEndToEnd_LegacyBasic(t *testing.T) {
 	f, err := os.Open("testdata/basic.schematic")
 	if err != nil {
@@ -100,5 +139,32 @@ func TestEndToEnd_LegacyBasic(t *testing.T) {
 		if name != "minecraft:stone" {
 			t.Errorf("Blocks[%d]: got %q want minecraft:stone", i, name)
 		}
+	}
+}
+
+func TestScan_LegacyBasic(t *testing.T) {
+	f, err := os.Open("testdata/basic.schematic")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
+
+	var got int
+	info, err := schem.Scan(f.Name(), f, func(b schem.Block) error {
+		got++
+		if b.Block == nil {
+			t.Fatalf("block %d nil", got)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("Scan: %v", err)
+	}
+
+	if info.Format != schem.FormatLegacy {
+		t.Errorf("format: %q", info.Format)
+	}
+	if got != 2 {
+		t.Fatalf("blocks: %d, want 2", got)
 	}
 }
