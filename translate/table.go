@@ -518,9 +518,18 @@ func applyJavaDerivedBedrockProperties(javaName, bedrockIdent string, props map[
 	if strings.HasSuffix(bedrockIdent, "_hanging_sign") {
 		if strings.HasSuffix(javaName, "_wall_hanging_sign") {
 			props["attached_bit"] = uint8(1)
+			props["hanging"] = uint8(1)
+		} else if _, ok := props["attached_bit"]; !ok {
+			props["attached_bit"] = uint8(0)
 		}
 		if _, ok := props["hanging"]; !ok {
-			props["hanging"] = uint8(1)
+			props["hanging"] = uint8(0)
+		}
+		if _, ok := props["facing_direction"]; !ok {
+			props["facing_direction"] = int32(0)
+		}
+		if _, ok := props["ground_sign_direction"]; !ok {
+			props["ground_sign_direction"] = int32(0)
 		}
 	}
 }

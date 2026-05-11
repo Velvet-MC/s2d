@@ -353,6 +353,51 @@ func TestLookup_SkyOlympusMissingStates(t *testing.T) {
 	}
 }
 
+func TestLookupPreservesHangingSignStates(t *testing.T) {
+	tests := []struct {
+		key       string
+		wantName  string
+		wantProps map[string]any
+	}{
+		{
+			key:      "minecraft:oak_wall_hanging_sign[facing=north,waterlogged=false]",
+			wantName: "minecraft:oak_hanging_sign",
+			wantProps: map[string]any{
+				"attached_bit":          uint8(1),
+				"facing_direction":      int32(2),
+				"ground_sign_direction": int32(0),
+				"hanging":               uint8(1),
+			},
+		},
+		{
+			key:      "minecraft:oak_hanging_sign[attached=false,rotation=4,waterlogged=false]",
+			wantName: "minecraft:oak_hanging_sign",
+			wantProps: map[string]any{
+				"attached_bit":          uint8(0),
+				"facing_direction":      int32(0),
+				"ground_sign_direction": int32(4),
+				"hanging":               uint8(0),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.key, func(t *testing.T) {
+			res := Lookup(tt.key)
+			if !res.Recognized {
+				t.Fatalf("%s not recognized", tt.key)
+			}
+			if res.BedrockState.Name != tt.wantName {
+				t.Fatalf("%s -> %s, want %s", tt.key, res.BedrockState.Name, tt.wantName)
+			}
+			for key, want := range tt.wantProps {
+				if got := res.BedrockState.Properties[key]; got != want {
+					t.Fatalf("%s property %s = %#v (%T), want %#v (%T)", tt.key, key, got, got, want, want)
+				}
+			}
+		})
+	}
+}
+
 func TestLookupPreservesAttachmentDirections(t *testing.T) {
 	tests := []struct {
 		key       string
