@@ -1,6 +1,7 @@
 package translate
 
 import (
+	"math"
 	"testing"
 
 	_ "github.com/df-mc/dragonfly/server/block" // register vanilla blocks for tests
@@ -92,5 +93,19 @@ func TestLookupReturnsInertBlockForTickingBedrockState(t *testing.T) {
 		Tick(int64, cube.Pos, *world.Tx)
 	}); ticking {
 		t.Fatalf("schematic block %T must be inert, not a random ticker", got.Block)
+	}
+}
+
+func TestStateBlockHashHasUniqueSlowPathIdentity(t *testing.T) {
+	stone := NewStateBlock(BedrockState{Name: "minecraft:stone"})
+	dirt := NewStateBlock(BedrockState{Name: "minecraft:dirt"})
+
+	stoneBase, stoneState := stone.Hash()
+	dirtBase, dirtState := dirt.Hash()
+	if stoneState != math.MaxUint64 || dirtState != math.MaxUint64 {
+		t.Fatalf("StateBlock state hashes = %d/%d, want slow-path sentinel", stoneState, dirtState)
+	}
+	if stoneBase == dirtBase {
+		t.Fatalf("StateBlock base hashes collide: %d", stoneBase)
 	}
 }
