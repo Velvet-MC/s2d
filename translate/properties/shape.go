@@ -4,7 +4,9 @@ package properties
 // stairs, either do not need the Java shape on Bedrock or encode it using a
 // different block model, so those shapes are deliberately dropped.
 func Shape(javaValue, bedrockIdent string) (string, any, bool) {
-	if bedrockIdent != "rail" {
+	switch bedrockIdent {
+	case "rail", "golden_rail", "detector_rail", "activator_rail":
+	default:
 		return "", nil, false
 	}
 	switch javaValue {

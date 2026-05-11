@@ -463,6 +463,62 @@ func TestLookupPreservesLeverAndButtonAttachmentStates(t *testing.T) {
 	}
 }
 
+func TestLookupPreservesRailStates(t *testing.T) {
+	tests := []struct {
+		key       string
+		wantName  string
+		wantProps map[string]any
+	}{
+		{
+			key:      "minecraft:rail[shape=ascending_east,waterlogged=false]",
+			wantName: "minecraft:rail",
+			wantProps: map[string]any{
+				"rail_direction": int32(2),
+			},
+		},
+		{
+			key:      "minecraft:powered_rail[powered=true,shape=north_south,waterlogged=false]",
+			wantName: "minecraft:golden_rail",
+			wantProps: map[string]any{
+				"rail_direction": int32(0),
+				"rail_data_bit":  uint8(1),
+			},
+		},
+		{
+			key:      "minecraft:detector_rail[powered=true,shape=ascending_south,waterlogged=false]",
+			wantName: "minecraft:detector_rail",
+			wantProps: map[string]any{
+				"rail_direction": int32(5),
+				"rail_data_bit":  uint8(1),
+			},
+		},
+		{
+			key:      "minecraft:activator_rail[powered=false,shape=ascending_west,waterlogged=false]",
+			wantName: "minecraft:activator_rail",
+			wantProps: map[string]any{
+				"rail_direction": int32(3),
+				"rail_data_bit":  uint8(0),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.key, func(t *testing.T) {
+			res := Lookup(tt.key)
+			if !res.Recognized {
+				t.Fatalf("%s not recognized", tt.key)
+			}
+			if res.BedrockState.Name != tt.wantName {
+				t.Fatalf("%s -> %s, want %s", tt.key, res.BedrockState.Name, tt.wantName)
+			}
+			for key, want := range tt.wantProps {
+				if got := res.BedrockState.Properties[key]; got != want {
+					t.Fatalf("%s property %s = %#v (%T), want %#v (%T)", tt.key, key, got, got, want, want)
+				}
+			}
+		})
+	}
+}
+
 func TestLookupPreservesAttachmentDirections(t *testing.T) {
 	tests := []struct {
 		key       string
