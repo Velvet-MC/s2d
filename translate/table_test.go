@@ -398,6 +398,71 @@ func TestLookupPreservesHangingSignStates(t *testing.T) {
 	}
 }
 
+func TestLookupPreservesLeverAndButtonAttachmentStates(t *testing.T) {
+	tests := []struct {
+		key       string
+		wantName  string
+		wantProps map[string]any
+	}{
+		{
+			key:      "minecraft:lever[face=wall,facing=north,powered=true]",
+			wantName: "minecraft:lever",
+			wantProps: map[string]any{
+				"lever_direction": "north",
+				"open_bit":        uint8(1),
+			},
+		},
+		{
+			key:      "minecraft:lever[face=floor,facing=east,powered=false]",
+			wantName: "minecraft:lever",
+			wantProps: map[string]any{
+				"lever_direction": "up_east_west",
+				"open_bit":        uint8(0),
+			},
+		},
+		{
+			key:      "minecraft:lever[face=ceiling,facing=south,powered=false]",
+			wantName: "minecraft:lever",
+			wantProps: map[string]any{
+				"lever_direction": "down_north_south",
+				"open_bit":        uint8(0),
+			},
+		},
+		{
+			key:      "minecraft:oak_button[face=floor,facing=north,powered=false]",
+			wantName: "minecraft:wooden_button",
+			wantProps: map[string]any{
+				"facing_direction":   int32(1),
+				"button_pressed_bit": uint8(0),
+			},
+		},
+		{
+			key:      "minecraft:oak_button[face=ceiling,facing=north,powered=true]",
+			wantName: "minecraft:wooden_button",
+			wantProps: map[string]any{
+				"facing_direction":   int32(0),
+				"button_pressed_bit": uint8(1),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.key, func(t *testing.T) {
+			res := Lookup(tt.key)
+			if !res.Recognized {
+				t.Fatalf("%s not recognized", tt.key)
+			}
+			if res.BedrockState.Name != tt.wantName {
+				t.Fatalf("%s -> %s, want %s", tt.key, res.BedrockState.Name, tt.wantName)
+			}
+			for key, want := range tt.wantProps {
+				if got := res.BedrockState.Properties[key]; got != want {
+					t.Fatalf("%s property %s = %#v (%T), want %#v (%T)", tt.key, key, got, got, want, want)
+				}
+			}
+		})
+	}
+}
+
 func TestLookupPreservesAttachmentDirections(t *testing.T) {
 	tests := []struct {
 		key       string

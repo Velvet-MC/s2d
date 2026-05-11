@@ -296,7 +296,7 @@ func translateOne(palette *bedrockPaletteIndex, javaName, bedrockIdent string, j
 		}
 		bedrockProps[bp] = bv
 	}
-	applyJavaDerivedBedrockProperties(javaName, bedrockIdent, bedrockProps)
+	applyJavaDerivedBedrockProperties(javaName, bedrockIdent, javaProps, bedrockProps)
 	applyImplicitBedrockProperties(bedrockIdent, bedrockProps)
 
 	full := "minecraft:" + bedrockIdent
@@ -501,7 +501,7 @@ func adjustBedrockIdentifier(javaName, bedrockIdent string, javaProps map[string
 	return bedrockIdent
 }
 
-func applyJavaDerivedBedrockProperties(javaName, bedrockIdent string, props map[string]any) {
+func applyJavaDerivedBedrockProperties(javaName, bedrockIdent string, javaProps map[string]string, props map[string]any) {
 	switch javaName {
 	case "lava_cauldron":
 		props["cauldron_liquid"] = "lava"
@@ -513,6 +513,20 @@ func applyJavaDerivedBedrockProperties(javaName, bedrockIdent string, props map[
 	case "tripwire":
 		if _, ok := props["suspended_bit"]; !ok {
 			props["suspended_bit"] = uint8(0)
+		}
+	}
+	if bedrockIdent == "lever" {
+		delete(props, "direction")
+		delete(props, "facing_direction")
+		delete(props, "powered_bit")
+		props["lever_direction"] = leverDirection(javaProps["face"], javaProps["facing"])
+	}
+	if strings.HasSuffix(bedrockIdent, "_button") || bedrockIdent == "wooden_button" || bedrockIdent == "stone_button" {
+		switch javaProps["face"] {
+		case "floor":
+			props["facing_direction"] = int32(1)
+		case "ceiling":
+			props["facing_direction"] = int32(0)
 		}
 	}
 	if strings.HasSuffix(bedrockIdent, "_hanging_sign") {
@@ -531,6 +545,28 @@ func applyJavaDerivedBedrockProperties(javaName, bedrockIdent string, props map[
 		if _, ok := props["ground_sign_direction"]; !ok {
 			props["ground_sign_direction"] = int32(0)
 		}
+	}
+}
+
+func leverDirection(face, facing string) string {
+	switch face {
+	case "wall":
+		switch facing {
+		case "east", "west", "south", "north":
+			return facing
+		default:
+			return "north"
+		}
+	case "ceiling":
+		if facing == "east" || facing == "west" {
+			return "down_east_west"
+		}
+		return "down_north_south"
+	default:
+		if facing == "east" || facing == "west" {
+			return "up_east_west"
+		}
+		return "up_north_south"
 	}
 }
 
