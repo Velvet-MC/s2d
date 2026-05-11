@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"io"
 
-	"github.com/Clxser/S2D/schem"
+	"github.com/Velvet-MC/s2d/schem"
 )
 
 func init() {

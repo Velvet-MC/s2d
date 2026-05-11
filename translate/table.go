@@ -12,7 +12,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Clxser/S2D/translate/properties"
+	"github.com/Velvet-MC/s2d/translate/properties"
 
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/sandertv/gophertunnel/minecraft/nbt"

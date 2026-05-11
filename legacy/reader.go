@@ -7,9 +7,9 @@ import (
 
 	"github.com/sandertv/gophertunnel/minecraft/nbt"
 
-	"github.com/Clxser/S2D/palette"
-	"github.com/Clxser/S2D/schem"
-	"github.com/Clxser/S2D/translate"
+	"github.com/Velvet-MC/s2d/palette"
+	"github.com/Velvet-MC/s2d/schem"
+	"github.com/Velvet-MC/s2d/translate"
 )
 
 // rawLegacy mirrors the MCEdit `.schematic` NBT root.

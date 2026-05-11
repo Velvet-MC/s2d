@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the S2D Go library v1.0 — read Sponge v2 (`.schem`) and legacy MCEdit (`.schematic`) Java schematics, translate every cell to a Dragonfly `world.Block` (with optional `world.Liquid` for waterlogged variants), report unknowns, and ship as `github.com/Clxser/S2D` (MIT).
+**Goal:** Build the S2D Go library v1.0 — read Sponge v2 (`.schem`) and legacy MCEdit (`.schematic`) Java schematics, translate every cell to a Dragonfly `world.Block` (with optional `world.Liquid` for waterlogged variants), report unknowns, and ship as `github.com/Velvet-MC/s2d` (MIT).
 
 **Architecture:** Six internal Go packages (`palette`, `sponge`, `legacy`, `translate`, `translate/properties`, `schem`) with sharply separated responsibilities. Format readers register themselves with the `schem` dispatcher at `init()` time. Translation replicates Geyser's runtime algorithm in Go: at first `Lookup`, lazily build a `map[javaState]world.Block` by walking a vendored Java block schema, applying ~30 per-property converters, and validating each result against a vendored Bedrock palette via Dragonfly's `world.BlockByName`.
 
@@ -12,7 +12,7 @@
 
 ## Working environment
 
-All paths in this plan are relative to the **S2D repo root** (`github.com/Clxser/S2D`). The user has placed a placeholder at `C:\Users\clxser\Documents\GitHub\Build\WorldEdit\s2d\` containing `docs/2026-05-10-design.md` and `docs/plans/2026-05-10-implementation.md`. Move/copy those into the actual cloned `Clxser/S2D` repo when it exists, then run all commands from the repo root.
+All paths in this plan are relative to the **S2D repo root** (`github.com/Velvet-MC/s2d`). The user has placed a placeholder at `C:\Users\clxser\Documents\GitHub\Build\WorldEdit\s2d\` containing `docs/2026-05-10-design.md` and `docs/plans/2026-05-10-implementation.md`. Move/copy those into the actual cloned `Velvet-MC/s2d` repo when it exists, then run all commands from the repo root.
 
 For the duration of this plan, `cd` into the S2D repo root before each step. Tests run via `go test ./...` from that root.
 
@@ -27,7 +27,7 @@ The Velvet-MC fork pins live in this user's downstream WE checkout, **not** in S
 | `go.mod`, `go.sum` | Module declaration; pins `df-mc/dragonfly` + `sandertv/gophertunnel`. No `replace` directives. |
 | `LICENSE` | MIT, owner = Clxser. |
 | `README.md` | Install, quickstart, worked example. |
-| `doc.go` | Package-level overview for `s2d` (the umbrella module path is `github.com/Clxser/S2D`; primary consumer entry is `schem.Read`). |
+| `doc.go` | Package-level overview for `s2d` (the umbrella module path is `github.com/Velvet-MC/s2d`; primary consumer entry is `schem.Read`). |
 | `palette/palette.go` | `JavaState` struct + `Decode(string) (JavaState, error)` + `Canonical()`. Pure string parsing. |
 | `palette/palette_test.go` | Table-driven tests for Decode + Canonical. |
 | `schem/types.go` | Public types: `Format`, `Block`, `Schematic`, `UnknownReport`, `FormatHandler`. |
@@ -103,10 +103,10 @@ The Velvet-MC fork pins live in this user's downstream WE checkout, **not** in S
 
 Run:
 ```bash
-go mod init github.com/Clxser/S2D
+go mod init github.com/Velvet-MC/s2d
 ```
 
-Expected: creates `go.mod` with `module github.com/Clxser/S2D` and `go 1.26.0` (adjust the Go directive to match your toolchain).
+Expected: creates `go.mod` with `module github.com/Velvet-MC/s2d` and `go 1.26.0` (adjust the Go directive to match your toolchain).
 
 - [ ] **Step 2: Add the two required dependencies**
 
@@ -139,7 +139,7 @@ Create `doc.go`:
 // world.Block values for use on Bedrock-edition servers.
 //
 // Consumers do not import this package directly. The public entry point is
-// github.com/Clxser/S2D/schem, which auto-detects the schematic format from
+// github.com/Velvet-MC/s2d/schem, which auto-detects the schematic format from
 // the filename and returns a *schem.Schematic with translated blocks.
 //
 // Example:
@@ -170,7 +170,7 @@ Create `README.md`:
 ## Install
 
 ```sh
-go get github.com/Clxser/S2D
+go get github.com/Velvet-MC/s2d
 ```
 
 ## Quickstart
@@ -182,7 +182,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/Clxser/S2D/schem"
+	"github.com/Velvet-MC/s2d/schem"
 )
 
 func main() {
@@ -1140,9 +1140,9 @@ import (
 	"io"
 	"sort"
 
-	"github.com/Clxser/S2D/palette"
-	"github.com/Clxser/S2D/schem"
-	"github.com/Clxser/S2D/translate"
+	"github.com/Velvet-MC/s2d/palette"
+	"github.com/Velvet-MC/s2d/schem"
+	"github.com/Velvet-MC/s2d/translate"
 
 	"github.com/sandertv/gophertunnel/minecraft/nbt"
 )
@@ -1270,7 +1270,7 @@ import (
 	"bytes"
 	"io"
 
-	"github.com/Clxser/S2D/schem"
+	"github.com/Velvet-MC/s2d/schem"
 )
 
 func init() {
@@ -1881,9 +1881,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/Clxser/S2D/palette"
-	"github.com/Clxser/S2D/schem"
-	"github.com/Clxser/S2D/translate"
+	"github.com/Velvet-MC/s2d/palette"
+	"github.com/Velvet-MC/s2d/schem"
+	"github.com/Velvet-MC/s2d/translate"
 
 	"github.com/sandertv/gophertunnel/minecraft/nbt"
 )
@@ -2018,7 +2018,7 @@ import (
 	"bytes"
 	"io"
 
-	"github.com/Clxser/S2D/schem"
+	"github.com/Velvet-MC/s2d/schem"
 )
 
 func init() {
@@ -2711,7 +2711,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Clxser/S2D/translate/properties"
+	"github.com/Velvet-MC/s2d/translate/properties"
 
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/sandertv/gophertunnel/minecraft/nbt"
@@ -3142,10 +3142,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Clxser/S2D/schem"
+	"github.com/Velvet-MC/s2d/schem"
 	// Side-effect imports register the format handlers.
-	_ "github.com/Clxser/S2D/sponge"
-	_ "github.com/Clxser/S2D/legacy"
+	_ "github.com/Velvet-MC/s2d/sponge"
+	_ "github.com/Velvet-MC/s2d/legacy"
 )
 
 func TestEndToEnd_SpongeSingleStone(t *testing.T) {

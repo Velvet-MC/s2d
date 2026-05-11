@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	_ "github.com/df-mc/dragonfly/server/block" // register vanilla Bedrock blocks
-	_ "github.com/Clxser/S2D/legacy"            // register legacy handler via init()
-	_ "github.com/Clxser/S2D/sponge"            // register sponge handler via init()
+	_ "github.com/Velvet-MC/s2d/legacy"            // register legacy handler via init()
+	_ "github.com/Velvet-MC/s2d/sponge"            // register sponge handler via init()
 
-	"github.com/Clxser/S2D/schem"
+	"github.com/Velvet-MC/s2d/schem"
 )
 
 func TestEndToEnd_SpongeSingleStone(t *testing.T) {

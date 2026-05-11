@@ -6,7 +6,7 @@ import (
 
 	_ "github.com/df-mc/dragonfly/server/block" // register vanilla blocks for translation
 
-	"github.com/Clxser/S2D/schem"
+	"github.com/Velvet-MC/s2d/schem"
 )
 
 func TestRead_SingleStone(t *testing.T) {

@@ -3,7 +3,7 @@
 // world.Block values for use on Bedrock-edition servers.
 //
 // Consumers do not import this package directly. The public entry point is
-// github.com/Clxser/S2D/schem, which auto-detects the schematic format from
+// github.com/Velvet-MC/s2d/schem, which auto-detects the schematic format from
 // the filename and returns a *schem.Schematic with translated blocks.
 //
 // Example:
