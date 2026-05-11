@@ -11,11 +11,15 @@ import (
 
 func TestRead_SingleStone(t *testing.T) {
 	f, err := os.Open("testdata/single_stone.schem")
-	if err != nil { t.Fatal(err) }
-	defer f.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
 
 	s, err := Read(f)
-	if err != nil { t.Fatalf("Read: %v", err) }
+	if err != nil {
+		t.Fatalf("Read: %v", err)
+	}
 
 	if s.Format != schem.FormatSpongeV2 {
 		t.Errorf("format: %q want %q", s.Format, schem.FormatSpongeV2)
@@ -44,17 +48,25 @@ func TestRead_SingleStone(t *testing.T) {
 
 func TestRead_MultiPalette(t *testing.T) {
 	f, err := os.Open("testdata/multi_palette.schem")
-	if err != nil { t.Fatal(err) }
-	defer f.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
 
 	s, err := Read(f)
-	if err != nil { t.Fatalf("Read: %v", err) }
+	if err != nil {
+		t.Fatalf("Read: %v", err)
+	}
 
-	if s.Format != schem.FormatSpongeV2 { t.Errorf("format: %q", s.Format) }
+	if s.Format != schem.FormatSpongeV2 {
+		t.Errorf("format: %q", s.Format)
+	}
 	if s.Width != 4 || s.Height != 1 || s.Length != 4 {
 		t.Fatalf("dims: %dx%dx%d", s.Width, s.Height, s.Length)
 	}
-	if len(s.Blocks) != 16 { t.Fatalf("expected 16 blocks, got %d", len(s.Blocks)) }
+	if len(s.Blocks) != 16 {
+		t.Fatalf("expected 16 blocks, got %d", len(s.Blocks))
+	}
 
 	// YZX iteration: cells [0..3] should have x=0..3, all y=z=0.
 	for x := 0; x < 4; x++ {

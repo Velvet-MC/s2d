@@ -29,7 +29,7 @@ func Read(r io.Reader) (*schem.Schematic, error) {
 	if err != nil {
 		return nil, fmt.Errorf("legacy: gzip: %w", err)
 	}
-	defer gz.Close()
+	defer func() { _ = gz.Close() }()
 	body, err := io.ReadAll(gz)
 	if err != nil {
 		return nil, fmt.Errorf("legacy: read: %w", err)

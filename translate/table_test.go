@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	_ "github.com/df-mc/dragonfly/server/block" // register vanilla blocks
+	"github.com/df-mc/dragonfly/server/world"
 )
 
 func TestPaletteCoverage(t *testing.T) {
@@ -62,4 +63,22 @@ func TestMissingBlockRegistered(t *testing.T) {
 	}
 	name, _ := b.EncodeBlock()
 	t.Logf("default missing block: %s", name)
+}
+
+func TestLookupTreatsDragonflyPlaceholdersAsUnknown(t *testing.T) {
+	direct, ok := world.BlockByName("minecraft:structure_void", nil)
+	if !ok {
+		t.Skip("Dragonfly does not know minecraft:structure_void")
+	}
+	if nbtBlock, ok := direct.(world.NBTer); !ok || nbtBlock.EncodeNBT() != nil {
+		t.Skip("Dragonfly structure_void is implemented in this version")
+	}
+
+	res := Lookup("minecraft:structure_void")
+	if res.Recognized {
+		t.Fatal("structure_void resolved to a Dragonfly placeholder but was reported as recognized")
+	}
+	if nbtBlock, ok := res.Block.(world.NBTer); ok && nbtBlock.EncodeNBT() == nil {
+		t.Fatal("placeholder block with nil NBT leaked through instead of missing-block fallback")
+	}
 }

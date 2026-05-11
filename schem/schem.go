@@ -62,7 +62,7 @@ func peekDecompressed(buf []byte, n int) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer gz.Close()
+	defer func() { _ = gz.Close() }()
 	out := make([]byte, n)
 	read, err := io.ReadFull(gz, out)
 	if err != nil && err != io.ErrUnexpectedEOF {

@@ -235,11 +235,14 @@ func translateOne(javaName, bedrockIdent string, javaProps map[string]string,
 
 	full := "minecraft:" + bedrockIdent
 	b, ok := world.BlockByName(full, bedrockProps)
+	if ok && !usableTranslatedBlock(b) {
+		ok = false
+	}
 	if !ok {
 		// Try without props (Bedrock blocks may have implicit defaults).
 		if b2, ok2 := world.BlockByName(full, nil); ok2 {
 			b = b2
-			ok = true
+			ok = usableTranslatedBlock(b2)
 		}
 	}
 	res := Result{Recognized: ok}
@@ -258,6 +261,16 @@ func translateOne(javaName, bedrockIdent string, javaProps map[string]string,
 	return res
 }
 
+func usableTranslatedBlock(b world.Block) bool {
+	if b == nil {
+		return false
+	}
+	if nbtBlock, ok := b.(world.NBTer); ok && nbtBlock.EncodeNBT() == nil {
+		return false
+	}
+	return true
+}
+
 // loadBedrockPalette decodes Geyser's gzipped block_palette.<ver>.nbt. The
 // palette is shipped as gzipped Java NBT (BigEndian).
 func loadBedrockPalette(data []byte) (map[string]any, error) {
@@ -265,7 +278,7 @@ func loadBedrockPalette(data []byte) (map[string]any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("gunzip palette: %w", err)
 	}
-	defer gz.Close()
+	defer func() { _ = gz.Close() }()
 	body, err := io.ReadAll(gz)
 	if err != nil {
 		return nil, fmt.Errorf("read palette: %w", err)

@@ -30,7 +30,7 @@ func Read(r io.Reader) (*schem.Schematic, error) {
 	if err != nil {
 		return nil, fmt.Errorf("sponge v2: gzip: %w", err)
 	}
-	defer gz.Close()
+	defer func() { _ = gz.Close() }()
 	body, err := io.ReadAll(gz)
 	if err != nil {
 		return nil, fmt.Errorf("sponge v2: read: %w", err)

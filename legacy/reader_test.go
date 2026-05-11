@@ -11,11 +11,15 @@ import (
 
 func TestRead_Basic(t *testing.T) {
 	f, err := os.Open("testdata/basic.schematic")
-	if err != nil { t.Fatal(err) }
-	defer f.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
 
 	s, err := Read(f)
-	if err != nil { t.Fatalf("Read: %v", err) }
+	if err != nil {
+		t.Fatalf("Read: %v", err)
+	}
 
 	if s.Format != schem.FormatLegacy {
 		t.Errorf("format: %q want %q", s.Format, schem.FormatLegacy)
@@ -47,11 +51,15 @@ func TestRead_Basic(t *testing.T) {
 
 func TestRead_AddBlocks(t *testing.T) {
 	f, err := os.Open("testdata/addblocks.schematic")
-	if err != nil { t.Fatal(err) }
-	defer f.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
 
 	s, err := Read(f)
-	if err != nil { t.Fatalf("Read: %v", err) }
+	if err != nil {
+		t.Fatalf("Read: %v", err)
+	}
 
 	// id=256 is not in legacy.json (modded territory). The reader should
 	// still parse cleanly; the cell ends up in Unknowns under "legacy:256:0"
