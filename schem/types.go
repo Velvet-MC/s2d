@@ -16,6 +16,7 @@ type Format string
 
 const (
 	FormatSpongeV2 Format = "sponge_v2"
+	FormatSpongeV3 Format = "sponge_v3"
 	FormatLegacy   Format = "legacy_schematic"
 )
 

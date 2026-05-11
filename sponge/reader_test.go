@@ -1,7 +1,9 @@
 package sponge
 
 import (
+	"bytes"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -98,6 +100,61 @@ func TestRead_MultiPalette(t *testing.T) {
 	if s.Unknowns.Total != 0 {
 		t.Errorf("expected 0 unknowns for vanilla blocks, got %d: %v",
 			s.Unknowns.Total, s.Unknowns.Counts)
+	}
+}
+
+func TestRead_SpongeV3NestedBlocks(t *testing.T) {
+	var data bytes.Buffer
+	writeVarintBuf(&data, 0)
+	writeVarintBuf(&data, 1)
+
+	path := filepath.Join(t.TempDir(), "v3.schem")
+	writeFixture(t, path, map[string]any{
+		"Schematic": map[string]any{
+			"Version":     int32(3),
+			"DataVersion": int32(3700),
+			"Width":       int16(2),
+			"Height":      int16(1),
+			"Length":      int16(1),
+			"Offset":      []int32{3, 4, 5},
+			"Blocks": map[string]any{
+				"Palette": map[string]int32{
+					"minecraft:stone": 0,
+					"minecraft:dirt":  1,
+				},
+				"Data": data.Bytes(),
+			},
+		},
+	})
+
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
+
+	s, err := Read(f)
+	if err != nil {
+		t.Fatalf("Read: %v", err)
+	}
+	if s.Format != schem.FormatSpongeV3 {
+		t.Fatalf("format = %q, want %q", s.Format, schem.FormatSpongeV3)
+	}
+	if s.Width != 2 || s.Height != 1 || s.Length != 1 {
+		t.Fatalf("dims: %dx%dx%d, want 2x1x1", s.Width, s.Height, s.Length)
+	}
+	if s.Offset != [3]int{3, 4, 5} {
+		t.Fatalf("offset = %v, want [3 4 5]", s.Offset)
+	}
+	if len(s.Blocks) != 2 {
+		t.Fatalf("blocks = %d, want 2", len(s.Blocks))
+	}
+	wantNames := []string{"minecraft:stone", "minecraft:dirt"}
+	for i, want := range wantNames {
+		got, _ := s.Blocks[i].Block.EncodeBlock()
+		if got != want {
+			t.Fatalf("block %d = %q, want %q", i, got, want)
+		}
 	}
 }
 

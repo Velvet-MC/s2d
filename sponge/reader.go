@@ -1,4 +1,4 @@
-// Package sponge reads Sponge Schematic v2 (.schem) files. It depends on
+// Package sponge reads Sponge Schematic (.schem) files. It depends on
 // gophertunnel/minecraft/nbt for big-endian Java NBT decoding.
 //
 // Translation to Dragonfly world.Block is performed by translate.Lookup.
@@ -25,7 +25,7 @@ var (
 	lookupJavaState  = translate.Lookup
 )
 
-// Read parses a Sponge v2 schematic from r.
+// Read parses a Sponge schematic from r.
 //
 // The reader is permissive about both the wrapper shape (real WorldEdit
 // output nests fields under a top-level "Schematic" compound; hand-built
@@ -52,28 +52,28 @@ func Read(r io.Reader) (*schem.Schematic, error) {
 	}, nil
 }
 
-// Scan parses a Sponge v2 schematic from r and calls yield for each translated
+// Scan parses a Sponge schematic from r and calls yield for each translated
 // block without materialising a full schem.Schematic.Blocks slice.
 func Scan(r io.Reader, yield schem.BlockHandler) (schem.ScanInfo, error) {
 	return ScanWithInfo(r, nil, yield)
 }
 
-// ScanWithInfo parses a Sponge v2 schematic from r, calls onInfo once after
+// ScanWithInfo parses a Sponge schematic from r, calls onInfo once after
 // dimensions are known, then calls yield for each translated block.
 func ScanWithInfo(r io.Reader, onInfo schem.InfoHandler, yield schem.BlockHandler) (schem.ScanInfo, error) {
 	gz, err := gzip.NewReader(r)
 	if err != nil {
-		return schem.ScanInfo{}, fmt.Errorf("sponge v2: gzip: %w", err)
+		return schem.ScanInfo{}, fmt.Errorf("sponge: gzip: %w", err)
 	}
 	defer func() { _ = gz.Close() }()
 	body, err := io.ReadAll(gz)
 	if err != nil {
-		return schem.ScanInfo{}, fmt.Errorf("sponge v2: read: %w", err)
+		return schem.ScanInfo{}, fmt.Errorf("sponge: read: %w", err)
 	}
 
 	root, err := decodePermissive(body)
 	if err != nil {
-		return schem.ScanInfo{}, fmt.Errorf("sponge v2: nbt: %w", err)
+		return schem.ScanInfo{}, fmt.Errorf("sponge: nbt: %w", err)
 	}
 
 	// Real WorldEdit files wrap the schematic in a top-level "Schematic"
@@ -83,24 +83,41 @@ func ScanWithInfo(r io.Reader, onInfo schem.InfoHandler, yield schem.BlockHandle
 	}
 
 	version, _ := asInt32(root["Version"])
-	if version != 2 {
-		return schem.ScanInfo{}, fmt.Errorf("sponge v2: version %d unsupported in v1.0", version)
+	format := schem.FormatSpongeV2
+	rawPaletteValue := root["Palette"]
+	blockDataValue := root["BlockData"]
+	blockEntitiesValue := root["BlockEntities"]
+	blockDataField := "BlockData"
+	switch version {
+	case 2:
+	case 3:
+		format = schem.FormatSpongeV3
+		blocks, ok := root["Blocks"].(map[string]any)
+		if !ok {
+			return schem.ScanInfo{}, fmt.Errorf("sponge v3: missing Blocks compound")
+		}
+		rawPaletteValue = blocks["Palette"]
+		blockDataValue = blocks["Data"]
+		blockEntitiesValue = blocks["BlockEntities"]
+		blockDataField = "Blocks.Data"
+	default:
+		return schem.ScanInfo{}, fmt.Errorf("sponge: version %d unsupported", version)
 	}
 
 	width, _ := asInt32(root["Width"])
 	height, _ := asInt32(root["Height"])
 	length, _ := asInt32(root["Length"])
 	if width <= 0 || height <= 0 || length <= 0 {
-		return schem.ScanInfo{}, fmt.Errorf("sponge v2: invalid dimensions %dx%dx%d", width, height, length)
+		return schem.ScanInfo{}, fmt.Errorf("sponge v%d: invalid dimensions %dx%dx%d", version, width, height, length)
 	}
 
-	rawPalette, ok := root["Palette"].(map[string]any)
+	rawPalette, ok := rawPaletteValue.(map[string]any)
 	if !ok || len(rawPalette) == 0 {
-		return schem.ScanInfo{}, fmt.Errorf("sponge v2: missing palette")
+		return schem.ScanInfo{}, fmt.Errorf("sponge v%d: missing palette", version)
 	}
-	blockData, err := asByteSlice(root["BlockData"])
+	blockData, err := asByteSlice(blockDataValue)
 	if err != nil || len(blockData) == 0 {
-		return schem.ScanInfo{}, fmt.Errorf("sponge v2: missing or invalid BlockData")
+		return schem.ScanInfo{}, fmt.Errorf("sponge v%d: missing or invalid %s", version, blockDataField)
 	}
 
 	w, h, l := int(uint16(width)), int(uint16(height)), int(uint16(length))
@@ -118,7 +135,7 @@ func ScanWithInfo(r io.Reader, onInfo schem.InfoHandler, yield schem.BlockHandle
 	for k, anyV := range rawPalette {
 		v, _ := asInt32(anyV)
 		if v < 0 || int(v) >= len(indexToKey) {
-			return schem.ScanInfo{}, fmt.Errorf("sponge v2: palette index %d out of range", v)
+			return schem.ScanInfo{}, fmt.Errorf("sponge v%d: palette index %d out of range", version, v)
 		}
 		indexToKey[v] = k
 	}
@@ -129,14 +146,14 @@ func ScanWithInfo(r io.Reader, onInfo schem.InfoHandler, yield schem.BlockHandle
 		}
 		js, perr := decodePaletteKey(key)
 		if perr != nil {
-			return schem.ScanInfo{}, fmt.Errorf("sponge v2: palette key %q: %w", key, perr)
+			return schem.ScanInfo{}, fmt.Errorf("sponge v%d: palette key %q: %w", version, key, perr)
 		}
 		indexToResult[i] = lookupJavaState(js.Canonical())
 	}
-	blockEntityNBT := bannerBlockEntities(root["BlockEntities"])
+	blockEntityNBT := bannerBlockEntities(blockEntitiesValue)
 
 	info := schem.ScanInfo{
-		Format:      schem.FormatSpongeV2,
+		Format:      format,
 		Width:       w,
 		Height:      h,
 		Length:      l,
@@ -148,7 +165,7 @@ func ScanWithInfo(r io.Reader, onInfo schem.InfoHandler, yield schem.BlockHandle
 	}
 	if onInfo != nil {
 		if err := onInfo(info); err != nil {
-			return info, fmt.Errorf("sponge v2: info: %w", err)
+			return info, fmt.Errorf("sponge v%d: info: %w", version, err)
 		}
 	}
 
@@ -158,10 +175,10 @@ func ScanWithInfo(r io.Reader, onInfo schem.InfoHandler, yield schem.BlockHandle
 			for x := 0; x < w; x++ {
 				idx, _, err := readVarint(br)
 				if err != nil {
-					return info, fmt.Errorf("sponge v2: varint at (%d,%d,%d): %w", x, y, z, err)
+					return info, fmt.Errorf("sponge v%d: varint at (%d,%d,%d): %w", version, x, y, z, err)
 				}
 				if int(idx) >= len(indexToKey) || indexToKey[idx] == "" {
-					return info, fmt.Errorf("sponge v2: at (%d,%d,%d): palette index %d out of range", x, y, z, idx)
+					return info, fmt.Errorf("sponge v%d: at (%d,%d,%d): palette index %d out of range", version, x, y, z, idx)
 				}
 				res := indexToResult[idx]
 				pos := [3]int{x, y, z}
@@ -181,7 +198,7 @@ func ScanWithInfo(r io.Reader, onInfo schem.InfoHandler, yield schem.BlockHandle
 					PaletteIndex:   idx,
 					PaletteIndexOK: true,
 				}); err != nil {
-					return info, fmt.Errorf("sponge v2: yield at (%d,%d,%d): %w", x, y, z, err)
+					return info, fmt.Errorf("sponge v%d: yield at (%d,%d,%d): %w", version, x, y, z, err)
 				}
 			}
 		}

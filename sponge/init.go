@@ -21,7 +21,7 @@ func init() {
 	})
 }
 
-// signatureMatch returns true if the decompressed header looks like Sponge v2.
+// signatureMatch returns true if the decompressed header looks like Sponge.
 // Cheap heuristic: NBT root contains the bytes "Version" near the start.
 func signatureMatch(headerPeek []byte) bool {
 	return bytes.Contains(headerPeek, []byte("Version"))
