@@ -39,6 +39,79 @@ func TestLookup_OakLogAxis(t *testing.T) {
 	}
 }
 
+func TestLookup_Leaves(t *testing.T) {
+	for _, key := range []string{
+		"minecraft:oak_leaves[distance=1,persistent=false]",
+		"minecraft:oak_leaves[distance=7,persistent=true]",
+		"minecraft:spruce_leaves[distance=3,persistent=false]",
+		"minecraft:jungle_leaves[distance=4,persistent=true]",
+		"minecraft:azalea_leaves[distance=4,persistent=false]",
+		"minecraft:flowering_azalea_leaves[distance=4,persistent=false]",
+	} {
+		t.Run(key, func(t *testing.T) {
+			res := Lookup(key)
+			if !res.Recognized {
+				t.Fatalf("%s not recognized", key)
+			}
+			name, _ := res.Block.EncodeBlock()
+			if name == "minecraft:magenta_wool" {
+				t.Fatalf("%s fell back to missing-block marker", key)
+			}
+		})
+	}
+}
+
+func TestLookup_ShortGrass(t *testing.T) {
+	res := Lookup("minecraft:grass")
+	if !res.Recognized {
+		t.Fatal("minecraft:grass not recognized")
+	}
+	name, _ := res.Block.EncodeBlock()
+	if name != "minecraft:short_grass" {
+		t.Fatalf("minecraft:grass -> %s, want minecraft:short_grass", name)
+	}
+}
+
+func TestLookup_CommonArenaBlocks(t *testing.T) {
+	tests := []struct {
+		key      string
+		wantName string
+	}{
+		{
+			key:      "minecraft:stone_brick_wall[east=low,north=none,south=tall,up=true,waterlogged=false,west=none]",
+			wantName: "minecraft:stone_brick_wall",
+		},
+		{
+			key:      "minecraft:cobblestone_stairs[facing=north,half=bottom,shape=straight,waterlogged=false]",
+			wantName: "minecraft:stone_stairs",
+		},
+		{
+			key:      "minecraft:oak_door[facing=north,half=lower,hinge=right,open=false,powered=false]",
+			wantName: "minecraft:wooden_door",
+		},
+		{
+			key:      "minecraft:oak_trapdoor[facing=west,half=top,open=true,powered=false,waterlogged=false]",
+			wantName: "minecraft:trapdoor",
+		},
+		{
+			key:      "minecraft:note_block[instrument=harp,note=0,powered=false]",
+			wantName: "minecraft:noteblock",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.key, func(t *testing.T) {
+			res := Lookup(tt.key)
+			if !res.Recognized {
+				t.Fatalf("%s not recognized", tt.key)
+			}
+			name, _ := res.Block.EncodeBlock()
+			if name != tt.wantName {
+				t.Fatalf("%s -> %s, want %s", tt.key, name, tt.wantName)
+			}
+		})
+	}
+}
+
 func TestLookup_Waterlogged(t *testing.T) {
 	res := Lookup("minecraft:oak_stairs[facing=north,half=bottom,shape=straight,waterlogged=true]")
 	if res.Liquid == nil {

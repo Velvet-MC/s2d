@@ -93,6 +93,9 @@ func buildTable() {
 		if hasOvr && ovr.BedrockIdentifier != "" {
 			bedrockIdent = strings.TrimPrefix(ovr.BedrockIdentifier, "minecraft:")
 		}
+		if alias, ok := bedrockIdentifierAliases[jb.Name]; ok {
+			bedrockIdent = alias
+		}
 
 		propNames, propValues := extractProperties(jb)
 
@@ -115,6 +118,7 @@ func buildTable() {
 			res := translateOne(jb.Name, bedrockIdent, javaProps, waterlogged, ovr)
 			res.RawKey = canonical
 			t[canonical] = res
+			addLookupAliases(t, jb.Name, javaProps, res)
 
 			done := true
 			for i := len(idx) - 1; i >= 0; i-- {
@@ -165,6 +169,42 @@ func extractProperties(jb prismaBlock) (names []string, values [][]string) {
 	}
 	sortByName(names, values)
 	return
+}
+
+func addLookupAliases(t map[string]Result, javaName string, javaProps map[string]string, res Result) {
+	if !strings.HasSuffix(javaName, "_leaves") && javaName != "flowering_azalea_leaves" {
+		return
+	}
+	withoutDistance := cloneStringMap(javaProps)
+	delete(withoutDistance, "distance")
+	putAlias(t, javaName, withoutDistance, res)
+
+	if javaProps["waterlogged"] == "false" {
+		withoutWaterlogged := cloneStringMap(javaProps)
+		delete(withoutWaterlogged, "waterlogged")
+		putAlias(t, javaName, withoutWaterlogged, res)
+
+		withoutBoth := cloneStringMap(withoutWaterlogged)
+		delete(withoutBoth, "distance")
+		putAlias(t, javaName, withoutBoth, res)
+	}
+}
+
+func putAlias(t map[string]Result, javaName string, javaProps map[string]string, res Result) {
+	key := canonicalKey(javaName, javaProps)
+	if _, exists := t[key]; !exists {
+		alias := res
+		alias.RawKey = key
+		t[key] = alias
+	}
+}
+
+func cloneStringMap(in map[string]string) map[string]string {
+	out := make(map[string]string, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
 }
 
 func sortByName(names []string, values [][]string) {
@@ -232,6 +272,7 @@ func translateOne(javaName, bedrockIdent string, javaProps map[string]string,
 		}
 		bedrockProps[bp] = bv
 	}
+	applyImplicitBedrockProperties(bedrockIdent, bedrockProps)
 
 	full := "minecraft:" + bedrockIdent
 	b, ok := world.BlockByName(full, bedrockProps)
@@ -259,6 +300,52 @@ func translateOne(javaName, bedrockIdent string, javaProps map[string]string,
 		}
 	}
 	return res
+}
+
+var bedrockIdentifierAliases = map[string]string{
+	"cobblestone_stairs":      "stone_stairs",
+	"end_stone_brick_stairs":  "end_brick_stairs",
+	"flowering_azalea_leaves": "azalea_leaves_flowered",
+	"grass":                   "short_grass",
+	"note_block":              "noteblock",
+	"oak_button":              "wooden_button",
+	"oak_door":                "wooden_door",
+	"oak_fence_gate":          "fence_gate",
+	"oak_pressure_plate":      "wooden_pressure_plate",
+	"oak_sign":                "standing_sign",
+	"oak_trapdoor":            "trapdoor",
+	"oak_wall_sign":           "wall_sign",
+	"dark_oak_sign":           "darkoak_standing_sign",
+	"dark_oak_wall_sign":      "darkoak_wall_sign",
+	"spruce_sign":             "spruce_standing_sign",
+	"spruce_wall_sign":        "spruce_wall_sign",
+	"birch_sign":              "birch_standing_sign",
+	"birch_wall_sign":         "birch_wall_sign",
+	"jungle_sign":             "jungle_standing_sign",
+	"jungle_wall_sign":        "jungle_wall_sign",
+	"acacia_sign":             "acacia_standing_sign",
+	"acacia_wall_sign":        "acacia_wall_sign",
+	"mangrove_sign":           "mangrove_standing_sign",
+	"mangrove_wall_sign":      "mangrove_wall_sign",
+	"cherry_sign":             "cherry_standing_sign",
+	"cherry_wall_sign":        "cherry_wall_sign",
+	"crimson_sign":            "crimson_standing_sign",
+	"crimson_wall_sign":       "crimson_wall_sign",
+	"warped_sign":             "warped_standing_sign",
+	"warped_wall_sign":        "warped_wall_sign",
+	"prismarine_brick_stairs": "prismarine_bricks_stairs",
+	"bamboo_stairs":           "oak_stairs",
+	"bamboo_mosaic_stairs":    "oak_stairs",
+	"iron_trapdoor":           "trapdoor",
+	"iron_door":               "wooden_door",
+}
+
+func applyImplicitBedrockProperties(bedrockIdent string, props map[string]any) {
+	if strings.HasSuffix(bedrockIdent, "_leaves") || bedrockIdent == "azalea_leaves_flowered" {
+		if _, ok := props["update_bit"]; !ok {
+			props["update_bit"] = false
+		}
+	}
 }
 
 func usableTranslatedBlock(b world.Block) bool {

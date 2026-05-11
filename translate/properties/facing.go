@@ -1,5 +1,7 @@
 package properties
 
+import "strings"
+
 // Facing converts Java facing (north|south|east|west|up|down) to whichever
 // Bedrock property a particular block uses. Bedrock has historically used
 // many names for the same concept: "direction" (4-way int), "facing_direction"
@@ -9,6 +11,16 @@ package properties
 // The branch table below covers the common cases. Add families as needed
 // when the table-build tests surface mismatches.
 func Facing(javaValue, bedrockIdent string) (string, any, bool) {
+	if strings.HasSuffix(bedrockIdent, "_door") || bedrockIdent == "wooden_door" ||
+		strings.HasSuffix(bedrockIdent, "_fence_gate") || bedrockIdent == "fence_gate" {
+		return "minecraft:cardinal_direction", javaValue, true
+	}
+	if strings.HasSuffix(bedrockIdent, "_stairs") {
+		return stairsDirection(javaValue)
+	}
+	if strings.HasSuffix(bedrockIdent, "_wall_sign") || bedrockIdent == "wall_sign" {
+		return "facing_direction", wallSignDirection(javaValue), true
+	}
 	switch bedrockIdent {
 	case "oak_stairs", "spruce_stairs", "birch_stairs", "jungle_stairs",
 		"acacia_stairs", "dark_oak_stairs", "mangrove_stairs", "cherry_stairs",
@@ -26,19 +38,7 @@ func Facing(javaValue, bedrockIdent string) (string, any, bool) {
 		"deepslate_brick_stairs", "deepslate_tile_stairs",
 		"polished_deepslate_stairs", "cobbled_deepslate_stairs",
 		"mud_brick_stairs", "tuff_stairs", "polished_tuff_stairs", "tuff_brick_stairs":
-		// Stairs on Bedrock use weirdo_direction:
-		// east=0, west=1, south=2, north=3.
-		switch javaValue {
-		case "east":
-			return "weirdo_direction", int32(0), true
-		case "west":
-			return "weirdo_direction", int32(1), true
-		case "south":
-			return "weirdo_direction", int32(2), true
-		case "north":
-			return "weirdo_direction", int32(3), true
-		}
-		return "weirdo_direction", int32(0), true
+		return stairsDirection(javaValue)
 	default:
 		// Most directional blocks use "direction" or "facing_direction".
 		// 4-way encoding: south=0, west=1, north=2, east=3.
@@ -58,4 +58,34 @@ func Facing(javaValue, bedrockIdent string) (string, any, bool) {
 		}
 		return "direction", int32(0), true
 	}
+}
+
+func stairsDirection(javaValue string) (string, any, bool) {
+	// Stairs on Bedrock use weirdo_direction:
+	// east=0, west=1, south=2, north=3.
+	switch javaValue {
+	case "east":
+		return "weirdo_direction", int32(0), true
+	case "west":
+		return "weirdo_direction", int32(1), true
+	case "south":
+		return "weirdo_direction", int32(2), true
+	case "north":
+		return "weirdo_direction", int32(3), true
+	}
+	return "weirdo_direction", int32(0), true
+}
+
+func wallSignDirection(javaValue string) int32 {
+	switch javaValue {
+	case "north":
+		return 2
+	case "east":
+		return 3
+	case "south":
+		return 4
+	case "west":
+		return 5
+	}
+	return 2
 }

@@ -23,18 +23,18 @@ func TestConverters(t *testing.T) {
 		{"facing", "north", "furnace", "direction", int32(2), true},
 		{"facing", "south", "furnace", "direction", int32(0), true},
 		// half — stairs
-		{"half", "top", "oak_stairs", "upside_down_bit", byte(1), true},
-		{"half", "bottom", "oak_stairs", "upside_down_bit", byte(0), true},
+		{"half", "top", "oak_stairs", "upside_down_bit", true, true},
+		{"half", "bottom", "oak_stairs", "upside_down_bit", false, true},
 		// half — door
-		{"half", "upper", "oak_door", "upper_block_bit", byte(1), true},
-		{"half", "lower", "oak_door", "upper_block_bit", byte(0), true},
+		{"half", "upper", "oak_door", "upper_block_bit", true, true},
+		{"half", "lower", "oak_door", "upper_block_bit", false, true},
 		// hinge
-		{"hinge", "left", "oak_door", "door_hinge_bit", byte(0), true},
-		{"hinge", "right", "oak_door", "door_hinge_bit", byte(1), true},
+		{"hinge", "left", "oak_door", "door_hinge_bit", false, true},
+		{"hinge", "right", "oak_door", "door_hinge_bit", true, true},
 		// open / powered / persistent
-		{"open", "true", "oak_door", "open_bit", byte(1), true},
-		{"powered", "true", "oak_button", "powered_bit", byte(1), true},
-		{"persistent", "true", "oak_leaves", "persistent_bit", byte(1), true},
+		{"open", "true", "oak_door", "open_bit", true, true},
+		{"powered", "true", "oak_button", "button_pressed_bit", byte(1), true},
+		{"persistent", "true", "oak_leaves", "persistent_bit", true, true},
 		// waterlogged → dropped
 		{"waterlogged", "true", "oak_stairs", "", nil, false},
 		// distance → dropped
@@ -53,7 +53,7 @@ func TestConverters(t *testing.T) {
 		{"type", "top", "oak_slab", "top_slot_bit", byte(1), true},
 		// walls
 		{"up", "true", "cobblestone_wall", "wall_post_bit", byte(1), true},
-		{"north", "low", "cobblestone_wall", "wall_connection_type_north", "low", true},
+		{"north", "low", "cobblestone_wall", "wall_connection_type_north", "short", true},
 	}
 	for _, c := range cases {
 		t.Run(c.prop+"/"+c.javaValue+"/"+c.bedrockId, func(t *testing.T) {

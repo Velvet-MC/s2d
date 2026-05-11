@@ -1,6 +1,6 @@
 package properties
 
-// Persistent converts Java persistent (true|false) to Bedrock persistent_bit (1|0).
+// Persistent converts Java leaves persistent (true|false) to Bedrock persistent_bit.
 func Persistent(javaValue, bedrockIdent string) (string, any, bool) {
-	return "persistent_bit", boolToBit(javaValue), true
+	return "persistent_bit", javaValue == "true", true
 }
