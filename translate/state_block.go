@@ -42,6 +42,19 @@ func (StateBlock) Model() world.BlockModel {
 	return stateBlockModel{}
 }
 
+// EncodeNBT returns empty block-entity data for states whose Bedrock runtime
+// ID is NBT-backed. StateBlock deliberately preserves visuals only; it does
+// not emulate interactive block behaviour or inventories.
+func (StateBlock) EncodeNBT() map[string]any {
+	return map[string]any{}
+}
+
+// DecodeNBT keeps the inert state block when Dragonfly reloads NBT-backed
+// runtime IDs from chunk storage.
+func (b StateBlock) DecodeNBT(map[string]any) any {
+	return b
+}
+
 type stateBlockModel struct{}
 
 func (stateBlockModel) BBox(cube.Pos, world.BlockSource) []cube.BBox {
@@ -52,7 +65,10 @@ func (stateBlockModel) FaceSolid(cube.Pos, cube.Face, world.BlockSource) bool {
 	return true
 }
 
-var _ world.Block = StateBlock{}
+var (
+	_ world.Block = StateBlock{}
+	_ world.NBTer = StateBlock{}
+)
 
 func stateBlockHashKey(state BedrockState) string {
 	if len(state.Properties) == 0 {

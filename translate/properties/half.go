@@ -5,6 +5,12 @@ import "strings"
 // Half handles Java's "half" property which means different things on
 // stairs/trapdoors vs doors/flowers.
 func Half(javaValue, bedrockIdent string) (string, any, bool) {
+	if bedrockIdent == "seagrass" {
+		if javaValue == "upper" {
+			return "sea_grass_type", "double_top", true
+		}
+		return "sea_grass_type", "double_bot", true
+	}
 	if strings.HasSuffix(bedrockIdent, "_door") || bedrockIdent == "wooden_door" || bedrockIdent == "iron_door" ||
 		bedrockIdent == "tall_grass" || bedrockIdent == "large_fern" ||
 		bedrockIdent == "sunflower" || bedrockIdent == "lilac" ||

@@ -311,10 +311,14 @@ var bedrockIdentifierAliases = map[string]string{
 	"cobweb":                  "web",
 	"dead_bush":               "deadbush",
 	"bubble_column":           "water",
+	"end_stone_bricks":        "end_bricks",
 	"end_stone_brick_stairs":  "end_brick_stairs",
 	"flowering_azalea_leaves": "azalea_leaves_flowered",
 	"grass":                   "short_grass",
+	"lily_pad":                "waterlily",
 	"magma_block":             "magma",
+	"melon":                   "melon_block",
+	"nether_portal":           "portal",
 	"note_block":              "noteblock",
 	"oak_button":              "wooden_button",
 	"oak_door":                "wooden_door",
@@ -349,6 +353,9 @@ var bedrockIdentifierAliases = map[string]string{
 	"bricks":                  "brick_block",
 	"budding_amethyst":        "amethyst_block",
 	"pointed_dripstone":       "dripstone_block",
+	"rooted_dirt":             "dirt_with_roots",
+	"sugar_cane":              "reeds",
+	"tall_seagrass":           "seagrass",
 	"oak_sapling":             "short_grass",
 	"spruce_sapling":          "short_grass",
 	"birch_sapling":           "short_grass",
@@ -364,6 +371,9 @@ var bedrockIdentifierAliases = map[string]string{
 }
 
 func adjustBedrockIdentifier(javaName, bedrockIdent string, javaProps map[string]string) string {
+	if javaName == "light" {
+		return fmt.Sprintf("light_block_%s", javaProps["level"])
+	}
 	if javaProps["lit"] == "true" {
 		switch javaName {
 		case "redstone_ore":

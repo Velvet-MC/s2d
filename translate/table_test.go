@@ -216,6 +216,42 @@ func TestLookup_CommonArenaBlocks(t *testing.T) {
 	}
 }
 
+func TestLookup_PrismBaroqueMissingStates(t *testing.T) {
+	tests := []struct {
+		key       string
+		wantName  string
+		wantProps map[string]any
+	}{
+		{key: "minecraft:end_stone_bricks", wantName: "minecraft:end_bricks"},
+		{key: "minecraft:light[level=13,waterlogged=false]", wantName: "minecraft:light_block_13"},
+		{key: "minecraft:light[level=15,waterlogged=false]", wantName: "minecraft:light_block_15"},
+		{key: "minecraft:sugar_cane[age=0]", wantName: "minecraft:reeds", wantProps: map[string]any{"age": int32(0)}},
+		{key: "minecraft:rooted_dirt", wantName: "minecraft:dirt_with_roots"},
+		{key: "minecraft:nether_portal[axis=z]", wantName: "minecraft:portal", wantProps: map[string]any{"portal_axis": "z"}},
+		{key: "minecraft:nether_portal[axis=x]", wantName: "minecraft:portal", wantProps: map[string]any{"portal_axis": "x"}},
+		{key: "minecraft:tall_seagrass[half=upper]", wantName: "minecraft:seagrass", wantProps: map[string]any{"sea_grass_type": "double_top"}},
+		{key: "minecraft:tall_seagrass[half=lower]", wantName: "minecraft:seagrass", wantProps: map[string]any{"sea_grass_type": "double_bot"}},
+		{key: "minecraft:lily_pad", wantName: "minecraft:waterlily"},
+		{key: "minecraft:melon", wantName: "minecraft:melon_block"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.key, func(t *testing.T) {
+			res := Lookup(tt.key)
+			if !res.Recognized {
+				t.Fatalf("%s not recognized", tt.key)
+			}
+			if res.BedrockState.Name != tt.wantName {
+				t.Fatalf("%s -> %s, want %s", tt.key, res.BedrockState.Name, tt.wantName)
+			}
+			for k, want := range tt.wantProps {
+				if got := res.BedrockState.Properties[k]; got != want {
+					t.Fatalf("%s property %s = %#v (%T), want %#v (%T)", tt.key, k, got, got, want, want)
+				}
+			}
+		})
+	}
+}
+
 func TestLookup_Waterlogged(t *testing.T) {
 	res := Lookup("minecraft:oak_stairs[facing=north,half=bottom,shape=straight,waterlogged=true]")
 	if res.Liquid == nil {

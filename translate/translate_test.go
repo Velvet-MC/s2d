@@ -109,3 +109,20 @@ func TestStateBlockHashHasUniqueSlowPathIdentity(t *testing.T) {
 		t.Fatalf("StateBlock base hashes collide: %d", stoneBase)
 	}
 }
+
+func TestStateBlockImplementsNBTerForNBTBackedRuntimeIDs(t *testing.T) {
+	block := NewStateBlock(BedrockState{
+		Name:       "minecraft:smoker",
+		Properties: map[string]any{"minecraft:cardinal_direction": "north"},
+	})
+	nbtBlock, ok := any(block).(world.NBTer)
+	if !ok {
+		t.Fatalf("StateBlock must implement world.NBTer so Dragonfly can save NBT-backed runtime IDs")
+	}
+	if data := nbtBlock.EncodeNBT(); data == nil {
+		t.Fatalf("EncodeNBT returned nil, want an empty map")
+	}
+	if decoded, ok := nbtBlock.DecodeNBT(map[string]any{"ignored": int32(1)}).(StateBlock); !ok {
+		t.Fatalf("DecodeNBT returned %T, want StateBlock", decoded)
+	}
+}

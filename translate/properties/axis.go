@@ -1,7 +1,9 @@
 package properties
 
-// Axis converts Java AXIS (x|y|z) to Bedrock pillar_axis.
-// Logs, basalt, deepslate pillars, etc. all use the same prop name on Bedrock.
+// Axis converts Java AXIS (x|y|z) to the matching Bedrock state property.
 func Axis(javaValue, bedrockIdent string) (string, any, bool) {
+	if bedrockIdent == "portal" {
+		return "portal_axis", javaValue, true
+	}
 	return "pillar_axis", javaValue, true
 }
