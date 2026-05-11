@@ -78,10 +78,8 @@ func buildTable() {
 		return
 	}
 
-	// Decode the Bedrock palette purely as a validation step. Dragonfly's
-	// world.BlockByName is the authoritative resolver; the palette load is
-	// retained as a sanity hook for future palette-coverage diagnostics.
-	if _, err := loadBedrockPalette(bedrockPaletteNBT); err != nil {
+	bedrockPalette, err := loadBedrockPalette(bedrockPaletteNBT)
+	if err != nil {
 		tableErr = fmt.Errorf("translate: bedrock palette: %w", err)
 		return
 	}
@@ -101,7 +99,7 @@ func buildTable() {
 
 		if len(propNames) == 0 {
 			canonical := "minecraft:" + jb.Name
-			res := translateOne(jb.Name, bedrockIdent, nil, false, ovr)
+			res := translateOne(bedrockPalette, bedrockIdent, nil, false, ovr)
 			res.RawKey = canonical
 			t[canonical] = res
 			continue
@@ -116,7 +114,7 @@ func buildTable() {
 			resolvedIdent := adjustBedrockIdentifier(jb.Name, bedrockIdent, javaProps)
 			canonical := canonicalKey(jb.Name, javaProps)
 			waterlogged := strings.EqualFold(javaProps["waterlogged"], "true")
-			res := translateOne(jb.Name, resolvedIdent, javaProps, waterlogged, ovr)
+			res := translateOne(bedrockPalette, resolvedIdent, javaProps, waterlogged, ovr)
 			res.RawKey = canonical
 			t[canonical] = res
 			addLookupAliases(t, jb.Name, javaProps, res)
@@ -137,7 +135,12 @@ func buildTable() {
 	}
 
 	if airBlock, ok := world.BlockByName("minecraft:air", nil); ok {
-		air := Result{Block: airBlock, Recognized: true, RawKey: "minecraft:air"}
+		air := Result{
+			Block:        airBlock,
+			BedrockState: BedrockState{Name: "minecraft:air"},
+			Recognized:   true,
+			RawKey:       "minecraft:air",
+		}
 		t["minecraft:air"] = air
 		t["minecraft:cave_air"] = air
 		t["minecraft:void_air"] = air
@@ -250,7 +253,7 @@ func canonicalKey(blockName string, props map[string]string) string {
 }
 
 // translateOne resolves a single Java state combination to a Bedrock Result.
-func translateOne(javaName, bedrockIdent string, javaProps map[string]string,
+func translateOne(palette *bedrockPaletteIndex, bedrockIdent string, javaProps map[string]string,
 	waterlogged bool, ovr override) Result {
 
 	bedrockProps := map[string]any{}
@@ -282,20 +285,17 @@ func translateOne(javaName, bedrockIdent string, javaProps map[string]string,
 	applyImplicitBedrockProperties(bedrockIdent, bedrockProps)
 
 	full := "minecraft:" + bedrockIdent
-	b, ok := world.BlockByName(full, bedrockProps)
-	if ok && !usableTranslatedBlock(b) {
-		ok = false
-	}
+	state, ok := palette.lookup(full, bedrockProps)
 	if !ok {
-		// Try without props (Bedrock blocks may have implicit defaults).
-		if b2, ok2 := world.BlockByName(full, nil); ok2 {
-			b = b2
-			ok = usableTranslatedBlock(b2)
-		}
+		state, ok = palette.defaultState(full)
 	}
-	res := Result{Recognized: ok}
+	res := Result{BedrockState: state.Clone(), Recognized: ok}
 	if ok {
-		res.Block = b
+		if b, bok := world.BlockByName(state.Name, state.Properties); bok {
+			res.Block = b
+		} else {
+			res.Block = MissingBlock()
+		}
 	} else {
 		res.Block = MissingBlock()
 	}
@@ -385,13 +385,13 @@ func adjustBedrockIdentifier(javaName, bedrockIdent string, javaProps map[string
 func applyImplicitBedrockProperties(bedrockIdent string, props map[string]any) {
 	if strings.HasSuffix(bedrockIdent, "_leaves") || bedrockIdent == "azalea_leaves_flowered" {
 		if _, ok := props["update_bit"]; !ok {
-			props["update_bit"] = false
+			props["update_bit"] = uint8(0)
 		}
 	}
 	switch bedrockIdent {
 	case "bedrock":
 		if _, ok := props["infiniburn_bit"]; !ok {
-			props["infiniburn_bit"] = false
+			props["infiniburn_bit"] = uint8(0)
 		}
 	case "smooth_quartz", "quartz_block", "chiseled_quartz_block":
 		if _, ok := props["pillar_axis"]; !ok {
@@ -443,40 +443,14 @@ func isGlowLichenFace(prop string) bool {
 	return false
 }
 
-func usableTranslatedBlock(b world.Block) bool {
-	if b == nil {
-		return false
-	}
-	if nbtBlock, ok := b.(world.NBTer); ok && nbtBlock.EncodeNBT() == nil {
-		name, _ := b.EncodeBlock()
-		return allowNilNBTBlock(name)
-	}
-	return true
+type bedrockPaletteIndex struct {
+	states   map[string]BedrockState
+	defaults map[string]BedrockState
 }
 
-func allowNilNBTBlock(name string) bool {
-	switch name {
-	case "minecraft:redstone_ore",
-		"minecraft:lit_redstone_ore",
-		"minecraft:deepslate_redstone_ore",
-		"minecraft:lit_deepslate_redstone_ore",
-		"minecraft:stone_button",
-		"minecraft:rail",
-		"minecraft:glow_lichen",
-		"minecraft:mob_spawner",
-		"minecraft:cartography_table",
-		"minecraft:amethyst_cluster",
-		"minecraft:small_amethyst_bud",
-		"minecraft:medium_amethyst_bud",
-		"minecraft:large_amethyst_bud":
-		return true
-	}
-	return false
-}
-
-// loadBedrockPalette decodes Geyser's gzipped block_palette.<ver>.nbt. The
-// palette is shipped as gzipped Java NBT (BigEndian).
-func loadBedrockPalette(data []byte) (map[string]any, error) {
+// loadBedrockPalette decodes the embedded Bedrock palette and indexes states
+// by minecraft: identifier plus state properties.
+func loadBedrockPalette(data []byte) (*bedrockPaletteIndex, error) {
 	gz, err := gzip.NewReader(bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("gunzip palette: %w", err)
@@ -493,5 +467,114 @@ func loadBedrockPalette(data []byte) (map[string]any, error) {
 			return nil, fmt.Errorf("decode palette: BigEndian=%v LittleEndian=%v", err, err2)
 		}
 	}
-	return root, nil
+	blocks, ok := root["blocks"].([]any)
+	if !ok {
+		return nil, fmt.Errorf("decode palette: blocks list missing")
+	}
+	idx := &bedrockPaletteIndex{
+		states:   make(map[string]BedrockState, len(blocks)),
+		defaults: make(map[string]BedrockState),
+	}
+	for _, raw := range blocks {
+		m, ok := raw.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("decode palette: block entry has type %T", raw)
+		}
+		name, ok := m["name"].(string)
+		if !ok || name == "" {
+			return nil, fmt.Errorf("decode palette: block entry has invalid name %T", m["name"])
+		}
+		props, ok := m["states"].(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("decode palette: %s states have type %T", name, m["states"])
+		}
+		state := BedrockState{Name: name, Properties: normaliseBedrockProperties(props)}
+		idx.states[bedrockStateKey(state.Name, state.Properties)] = state
+		if _, exists := idx.defaults[name]; !exists {
+			idx.defaults[name] = state
+		}
+	}
+	return idx, nil
+}
+
+func (p *bedrockPaletteIndex) lookup(name string, properties map[string]any) (BedrockState, bool) {
+	if p == nil {
+		return BedrockState{}, false
+	}
+	state, ok := p.states[bedrockStateKey(name, normaliseBedrockProperties(properties))]
+	return state, ok
+}
+
+func (p *bedrockPaletteIndex) defaultState(name string) (BedrockState, bool) {
+	if p == nil {
+		return BedrockState{}, false
+	}
+	state, ok := p.defaults[name]
+	return state, ok
+}
+
+func normaliseBedrockProperties(in map[string]any) map[string]any {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]any, len(in))
+	for k, v := range in {
+		switch x := v.(type) {
+		case uint8:
+			out[k] = x
+		case bool:
+			if x {
+				out[k] = uint8(1)
+			} else {
+				out[k] = uint8(0)
+			}
+		case int:
+			out[k] = int32(x)
+		case int8:
+			out[k] = int32(x)
+		case int16:
+			out[k] = int32(x)
+		case int32:
+			out[k] = x
+		case int64:
+			out[k] = int32(x)
+		case string:
+			out[k] = x
+		default:
+			out[k] = x
+		}
+	}
+	return out
+}
+
+func bedrockStateKey(name string, properties map[string]any) string {
+	return name + "\x00" + hashBedrockProperties(properties)
+}
+
+func hashBedrockProperties(properties map[string]any) string {
+	if len(properties) == 0 {
+		return ""
+	}
+	keys := make([]string, 0, len(properties))
+	for k := range properties {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var b strings.Builder
+	for _, k := range keys {
+		b.WriteString(k)
+		b.WriteByte('=')
+		switch v := properties[k].(type) {
+		case uint8:
+			b.WriteString(strconv.Itoa(int(v)))
+		case int32:
+			b.WriteString(strconv.Itoa(int(v)))
+		case string:
+			b.WriteString(v)
+		default:
+			_, _ = fmt.Fprintf(&b, "%v", v)
+		}
+		b.WriteByte(';')
+	}
+	return b.String()
 }

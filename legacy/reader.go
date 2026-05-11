@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
+	"maps"
 
 	"github.com/sandertv/gophertunnel/minecraft/nbt"
 
@@ -128,7 +129,12 @@ func ScanWithInfo(r io.Reader, onInfo schem.InfoHandler, yield schem.BlockHandle
 						info.Unknowns.Counts["minecraft:air"]++
 						info.Unknowns.Total++
 					}
-					if err := yield(schem.Block{Pos: [3]int{x, y, z}, Block: res.Block, Liquid: res.Liquid}); err != nil {
+					if err := yield(schem.Block{
+						Pos:          [3]int{x, y, z},
+						Block:        res.Block,
+						Liquid:       res.Liquid,
+						BedrockState: schem.BedrockState{Name: res.BedrockState.Name, Properties: maps.Clone(res.BedrockState.Properties)},
+					}); err != nil {
 						return info, fmt.Errorf("legacy: yield at (%d,%d,%d): %w", x, y, z, err)
 					}
 					continue
@@ -155,7 +161,12 @@ func ScanWithInfo(r io.Reader, onInfo schem.InfoHandler, yield schem.BlockHandle
 					info.Unknowns.Counts[res.RawKey]++
 					info.Unknowns.Total++
 				}
-				if err := yield(schem.Block{Pos: [3]int{x, y, z}, Block: res.Block, Liquid: res.Liquid}); err != nil {
+				if err := yield(schem.Block{
+					Pos:          [3]int{x, y, z},
+					Block:        res.Block,
+					Liquid:       res.Liquid,
+					BedrockState: schem.BedrockState{Name: res.BedrockState.Name, Properties: maps.Clone(res.BedrockState.Properties)},
+				}); err != nil {
 					return info, fmt.Errorf("legacy: yield at (%d,%d,%d): %w", x, y, z, err)
 				}
 			}

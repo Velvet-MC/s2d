@@ -9,6 +9,7 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
+	"maps"
 	"reflect"
 
 	"github.com/sandertv/gophertunnel/minecraft/nbt"
@@ -169,6 +170,7 @@ func ScanWithInfo(r io.Reader, onInfo schem.InfoHandler, yield schem.BlockHandle
 					Pos:            [3]int{x, y, z},
 					Block:          res.Block,
 					Liquid:         res.Liquid,
+					BedrockState:   schem.BedrockState{Name: res.BedrockState.Name, Properties: maps.Clone(res.BedrockState.Properties)},
 					PaletteIndex:   idx,
 					PaletteIndexOK: true,
 				}); err != nil {

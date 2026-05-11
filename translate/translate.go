@@ -9,19 +9,35 @@
 package translate
 
 import (
+	"maps"
 	"sync"
 
 	"github.com/df-mc/dragonfly/server/world"
 )
 
+// BedrockState is a neutral Bedrock block-state identifier. It describes what
+// should be sent/saved as a Minecraft Bedrock state without requiring a
+// concrete Dragonfly block implementation to exist for that state.
+type BedrockState struct {
+	Name       string
+	Properties map[string]any
+}
+
+// Clone returns a copy of the Bedrock state and its property map.
+func (s BedrockState) Clone() BedrockState {
+	s.Properties = maps.Clone(s.Properties)
+	return s
+}
+
 // Result is what Lookup returns. Block is never nil; if Recognized is
 // false the missing-block fallback is returned and the canonical Java
 // state is echoed in RawKey for caller-side reporting.
 type Result struct {
-	Block      world.Block
-	Liquid     world.Liquid
-	Recognized bool
-	RawKey     string
+	Block        world.Block
+	Liquid       world.Liquid
+	BedrockState BedrockState
+	Recognized   bool
+	RawKey       string
 }
 
 var (

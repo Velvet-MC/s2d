@@ -140,6 +140,7 @@ func TestScanReportsPaletteIndexes(t *testing.T) {
 
 	var infoPaletteSize int
 	var got []uint32
+	var states []string
 	info, err := ScanWithInfo(f, func(info schem.ScanInfo) error {
 		infoPaletteSize = info.PaletteSize
 		return nil
@@ -148,6 +149,7 @@ func TestScanReportsPaletteIndexes(t *testing.T) {
 			t.Fatalf("block at %v did not report palette index", b.Pos)
 		}
 		got = append(got, b.PaletteIndex)
+		states = append(states, b.BedrockState.Name)
 		return nil
 	})
 	if err != nil {
@@ -161,6 +163,11 @@ func TestScanReportsPaletteIndexes(t *testing.T) {
 	for i, w := range want {
 		if got[i] != w {
 			t.Fatalf("palette index[%d] = %d, want %d", i, got[i], w)
+		}
+	}
+	for i, state := range states {
+		if state == "" {
+			t.Fatalf("bedrock state[%d] was empty", i)
 		}
 	}
 }

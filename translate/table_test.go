@@ -242,7 +242,7 @@ func TestMissingBlockRegistered(t *testing.T) {
 	t.Logf("default missing block: %s", name)
 }
 
-func TestLookupTreatsDragonflyPlaceholdersAsUnknown(t *testing.T) {
+func TestLookupTreatsDragonflyPlaceholdersAsRecognizedBedrockStates(t *testing.T) {
 	direct, ok := world.BlockByName("minecraft:structure_void", nil)
 	if !ok {
 		t.Skip("Dragonfly does not know minecraft:structure_void")
@@ -252,10 +252,10 @@ func TestLookupTreatsDragonflyPlaceholdersAsUnknown(t *testing.T) {
 	}
 
 	res := Lookup("minecraft:structure_void")
-	if res.Recognized {
-		t.Fatal("structure_void resolved to a Dragonfly placeholder but was reported as recognized")
+	if !res.Recognized {
+		t.Fatal("structure_void resolved to a Bedrock palette state but was reported as unknown")
 	}
-	if nbtBlock, ok := res.Block.(world.NBTer); ok && nbtBlock.EncodeNBT() == nil {
-		t.Fatal("placeholder block with nil NBT leaked through instead of missing-block fallback")
+	if res.BedrockState.Name != "minecraft:structure_void" {
+		t.Fatalf("BedrockState.Name = %q, want minecraft:structure_void", res.BedrockState.Name)
 	}
 }

@@ -6,6 +6,7 @@ package schem
 
 import (
 	"io"
+	"maps"
 
 	"github.com/df-mc/dragonfly/server/world"
 )
@@ -18,11 +19,26 @@ const (
 	FormatLegacy   Format = "legacy_schematic"
 )
 
+// BedrockState is a neutral Bedrock block-state identifier. It is the
+// minecraft: identifier and state properties a consumer should preserve even
+// if its runtime has no concrete behaviour implementation for the block.
+type BedrockState struct {
+	Name       string
+	Properties map[string]any
+}
+
+// Clone returns a copy of the Bedrock state and its property map.
+func (s BedrockState) Clone() BedrockState {
+	s.Properties = maps.Clone(s.Properties)
+	return s
+}
+
 // Block is one cell in a parsed schematic.
 type Block struct {
 	Pos            [3]int       // x, y, z within the schematic local frame
 	Block          world.Block  // translated Bedrock block; never nil
 	Liquid         world.Liquid // non-nil iff the Java source was waterlogged
+	BedrockState   BedrockState // neutral Bedrock identifier/properties
 	PaletteIndex   uint32       // source palette index when PaletteIndexOK is true
 	PaletteIndexOK bool         // true when the source format had palette indexes
 }

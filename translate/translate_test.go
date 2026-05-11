@@ -38,3 +38,42 @@ func TestLookup_FallsBackToMissing(t *testing.T) {
 		t.Errorf("RawKey: got %q", res.RawKey)
 	}
 }
+
+func TestLookupRecognizesBedrockPaletteStateWithoutConcreteDragonflyBlock(t *testing.T) {
+	got := Lookup("minecraft:pink_wool")
+	if !got.Recognized {
+		t.Fatalf("pink_wool should be recognized as a Bedrock palette state")
+	}
+	if got.BedrockState.Name != "minecraft:pink_wool" {
+		t.Fatalf("BedrockState.Name = %q, want minecraft:pink_wool", got.BedrockState.Name)
+	}
+	if len(got.BedrockState.Properties) != 0 {
+		t.Fatalf("BedrockState.Properties = %#v, want empty", got.BedrockState.Properties)
+	}
+	name, _ := got.Block.EncodeBlock()
+	if name != "minecraft:pink_wool" {
+		t.Fatalf("Block encodes as %q, want minecraft:pink_wool", name)
+	}
+}
+
+func TestLookupReturnsCanonicalBedrockStateProperties(t *testing.T) {
+	got := Lookup("minecraft:oak_leaves[distance=1,persistent=true,waterlogged=false]")
+	if !got.Recognized {
+		t.Fatalf("oak_leaves should be recognized as a Bedrock palette state")
+	}
+	if got.BedrockState.Name != "minecraft:oak_leaves" {
+		t.Fatalf("BedrockState.Name = %q, want minecraft:oak_leaves", got.BedrockState.Name)
+	}
+	if got.BedrockState.Properties["persistent_bit"] != uint8(1) {
+		t.Fatalf("persistent_bit = %#v (%T), want uint8(1)",
+			got.BedrockState.Properties["persistent_bit"], got.BedrockState.Properties["persistent_bit"])
+	}
+	if got.BedrockState.Properties["update_bit"] != uint8(0) {
+		t.Fatalf("update_bit = %#v (%T), want uint8(0)",
+			got.BedrockState.Properties["update_bit"], got.BedrockState.Properties["update_bit"])
+	}
+	name, _ := got.Block.EncodeBlock()
+	if name != "minecraft:oak_leaves" {
+		t.Fatalf("Block encodes as %q, want minecraft:oak_leaves", name)
+	}
+}
