@@ -9,10 +9,7 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
-	"reflect"
 	"strings"
-
-	"github.com/sandertv/gophertunnel/minecraft/nbt"
 
 	"github.com/Velvet-MC/s2d/palette"
 	"github.com/Velvet-MC/s2d/schem"
@@ -65,74 +62,51 @@ func ScanWithInfo(r io.Reader, onInfo schem.InfoHandler, yield schem.BlockHandle
 		return schem.ScanInfo{}, fmt.Errorf("sponge: gzip: %w", err)
 	}
 	defer func() { _ = gz.Close() }()
-	body, err := io.ReadAll(gz)
-	if err != nil {
-		return schem.ScanInfo{}, fmt.Errorf("sponge: read: %w", err)
-	}
-
-	root, err := decodePermissive(body)
+	raw, err := decodeSpongeNBT(gz)
 	if err != nil {
 		return schem.ScanInfo{}, fmt.Errorf("sponge: nbt: %w", err)
 	}
 
-	// Real WorldEdit files wrap the schematic in a top-level "Schematic"
-	// compound; some other writers put fields at the root.
-	if inner, ok := root["Schematic"].(map[string]any); ok {
-		root = inner
-	}
-
-	version, _ := asInt32(root["Version"])
+	version := raw.Version
 	format := schem.FormatSpongeV2
-	rawPaletteValue := root["Palette"]
-	blockDataValue := root["BlockData"]
-	blockEntitiesValue := root["BlockEntities"]
+	rawPalette := raw.Palette
+	blockData := raw.BlockData
+	blockEntities := raw.BlockEntities
 	blockDataField := "BlockData"
 	switch version {
 	case 2:
 	case 3:
 		format = schem.FormatSpongeV3
-		blocks, ok := root["Blocks"].(map[string]any)
-		if !ok {
-			return schem.ScanInfo{}, fmt.Errorf("sponge v3: missing Blocks compound")
-		}
-		rawPaletteValue = blocks["Palette"]
-		blockDataValue = blocks["Data"]
-		blockEntitiesValue = blocks["BlockEntities"]
+		rawPalette = raw.Blocks.Palette
+		blockData = raw.Blocks.Data
+		blockEntities = raw.Blocks.BlockEntities
 		blockDataField = "Blocks.Data"
 	default:
 		return schem.ScanInfo{}, fmt.Errorf("sponge: version %d unsupported", version)
 	}
 
-	width, _ := asInt32(root["Width"])
-	height, _ := asInt32(root["Height"])
-	length, _ := asInt32(root["Length"])
-	if width <= 0 || height <= 0 || length <= 0 {
-		return schem.ScanInfo{}, fmt.Errorf("sponge v%d: invalid dimensions %dx%dx%d", version, width, height, length)
+	if raw.Width <= 0 || raw.Height <= 0 || raw.Length <= 0 {
+		return schem.ScanInfo{}, fmt.Errorf("sponge v%d: invalid dimensions %dx%dx%d", version, raw.Width, raw.Height, raw.Length)
 	}
-
-	rawPalette, ok := rawPaletteValue.(map[string]any)
-	if !ok || len(rawPalette) == 0 {
+	if len(rawPalette) == 0 {
 		return schem.ScanInfo{}, fmt.Errorf("sponge v%d: missing palette", version)
 	}
-	blockData, err := asByteSlice(blockDataValue)
-	if err != nil || len(blockData) == 0 {
+	if len(blockData) == 0 {
 		return schem.ScanInfo{}, fmt.Errorf("sponge v%d: missing or invalid %s", version, blockDataField)
 	}
 
-	w, h, l := int(uint16(width)), int(uint16(height)), int(uint16(length))
+	w, h, l := int(uint16(raw.Width)), int(uint16(raw.Height)), int(uint16(raw.Length))
 
 	// Build index-to-key lookup. The palette map is keyed by block name with
 	// palette index as value. Build a slice indexed by palette index.
 	highest := int32(-1)
-	for _, anyV := range rawPalette {
-		v, _ := asInt32(anyV)
+	for _, v := range rawPalette {
 		if v > highest {
 			highest = v
 		}
 	}
 	indexToKey := make([]string, highest+1)
-	for k, anyV := range rawPalette {
-		v, _ := asInt32(anyV)
+	for k, v := range rawPalette {
 		if v < 0 || int(v) >= len(indexToKey) {
 			return schem.ScanInfo{}, fmt.Errorf("sponge v%d: palette index %d out of range", version, v)
 		}
@@ -152,7 +126,7 @@ func ScanWithInfo(r io.Reader, onInfo schem.InfoHandler, yield schem.BlockHandle
 		indexToResult[i] = res
 		indexToBedrockState[i] = schem.BedrockState{Name: res.BedrockState.Name, Properties: res.BedrockState.Properties}
 	}
-	blockEntityNBT := bannerBlockEntities(blockEntitiesValue)
+	blockEntityNBT := bannerBlockEntities(blockEntities)
 
 	info := schem.ScanInfo{
 		Format:      format,
@@ -162,8 +136,8 @@ func ScanWithInfo(r io.Reader, onInfo schem.InfoHandler, yield schem.BlockHandle
 		PaletteSize: len(indexToKey),
 		Unknowns:    schem.UnknownReport{Counts: map[string]int{}},
 	}
-	if off, err := asInt32Slice(root["Offset"]); err == nil && len(off) == 3 {
-		info.Offset = [3]int{int(off[0]), int(off[1]), int(off[2])}
+	if len(raw.Offset) == 3 {
+		info.Offset = [3]int{int(raw.Offset[0]), int(raw.Offset[1]), int(raw.Offset[2])}
 	}
 	if onInfo != nil {
 		if err := onInfo(info); err != nil {
@@ -208,118 +182,26 @@ func ScanWithInfo(r io.Reader, onInfo schem.InfoHandler, yield schem.BlockHandle
 	return info, nil
 }
 
-func bannerBlockEntities(raw any) map[[3]int]map[string]any {
-	entries, ok := raw.([]any)
-	if !ok || len(entries) == 0 {
+func bannerBlockEntities(entries []rawBlockEntity) map[[3]int]map[string]any {
+	if len(entries) == 0 {
 		return nil
 	}
 	out := map[[3]int]map[string]any{}
 	for _, entry := range entries {
-		m, ok := entry.(map[string]any)
-		if !ok {
-			continue
-		}
-		id, _ := m["Id"].(string)
-		if !strings.Contains(id, "banner") {
-			continue
-		}
-		posSlice, err := asInt32Slice(m["Pos"])
-		if err != nil || len(posSlice) != 3 {
+		if !strings.Contains(entry.ID, "banner") || len(entry.Pos) != 3 {
 			continue
 		}
 		data := map[string]any{"id": "Banner"}
-		if patterns, ok := m["Patterns"]; ok {
-			data["Patterns"] = patterns
+		if entry.Patterns != nil {
+			data["Patterns"] = entry.Patterns
 		}
-		if base, ok := asInt32(m["Base"]); ok {
-			data["Base"] = base
+		if entry.HasBase {
+			data["Base"] = entry.Base
 		}
-		out[[3]int{int(posSlice[0]), int(posSlice[1]), int(posSlice[2])}] = data
+		out[[3]int{int(entry.Pos[0]), int(entry.Pos[1]), int(entry.Pos[2])}] = data
 	}
 	if len(out) == 0 {
 		return nil
 	}
 	return out
-}
-
-// decodePermissive decodes Java big-endian NBT into a generic map so the
-// reader can ignore unknown/optional fields and handle byte-array tags
-// regardless of whether they were emitted as TAG_ByteArray or TAG_List.
-func decodePermissive(body []byte) (map[string]any, error) {
-	var root map[string]any
-	if err := nbt.UnmarshalEncoding(body, &root, nbt.BigEndian); err != nil {
-		return nil, err
-	}
-	return root, nil
-}
-
-// asInt32 normalises any integer-shaped NBT value to int32. Sponge v2 uses
-// short for dimensions but writes them as signed int16; some fields are
-// int32 directly. Both are accepted.
-func asInt32(v any) (int32, bool) {
-	switch x := v.(type) {
-	case int32:
-		return x, true
-	case int16:
-		return int32(x), true
-	case int8:
-		return int32(x), true
-	case int64:
-		return int32(x), true
-	case int:
-		return int32(x), true
-	}
-	return 0, false
-}
-
-// asInt32Slice extracts a slice of int32 from an NBT int-array tag.
-func asInt32Slice(v any) ([]int32, error) {
-	if v == nil {
-		return nil, fmt.Errorf("nil")
-	}
-	if s, ok := v.([]int32); ok {
-		return s, nil
-	}
-	rv := reflect.ValueOf(v)
-	if rv.Kind() == reflect.Array && rv.Type().Elem().Kind() == reflect.Int32 {
-		out := make([]int32, rv.Len())
-		reflect.Copy(reflect.ValueOf(out), rv)
-		return out, nil
-	}
-	return nil, fmt.Errorf("expected int32 array, got %T", v)
-}
-
-// asByteSlice extracts a []byte from an NBT byte-array tag. gophertunnel's
-// strict decoder produces TAG_ByteArray as a fixed-size [N]byte when the
-// destination is `any`; this helper copies it into a slice.
-func asByteSlice(v any) ([]byte, error) {
-	if v == nil {
-		return nil, fmt.Errorf("nil")
-	}
-	if b, ok := v.([]byte); ok {
-		return b, nil
-	}
-	rv := reflect.ValueOf(v)
-	if rv.Kind() == reflect.Array && rv.Type().Elem().Kind() == reflect.Uint8 {
-		out := make([]byte, rv.Len())
-		reflect.Copy(reflect.ValueOf(out), rv)
-		return out, nil
-	}
-	// Some encoders emit byte arrays as TAG_List of TAG_Byte. Accept []any
-	// of byte/int8 too.
-	if s, ok := v.([]any); ok {
-		out := make([]byte, len(s))
-		for i, e := range s {
-			switch x := e.(type) {
-			case byte:
-				out[i] = x
-			case int8:
-				out[i] = byte(x)
-			default:
-				return nil, fmt.Errorf("byte slice element %d: %T", i, e)
-			}
-		}
-		return out, nil
-	}
-	return nil, fmt.Errorf("expected byte array, got %T", v)
 }
