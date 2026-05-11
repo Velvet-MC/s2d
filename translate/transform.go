@@ -30,6 +30,19 @@ func TransformBedrockState(state BedrockState, axis string, turns int, flip bool
 			}
 		}
 	}
+	for _, key := range []string{"minecraft:block_face", "block_face"} {
+		if v, ok := props[key]; ok {
+			if s, ok := v.(string); ok {
+				if face, ok := bedrockFaceFromString(s); ok {
+					next := bedrockTransformFace(face, t)
+					if next != face {
+						props[key] = bedrockFaceString(next)
+						changed = true
+					}
+				}
+			}
+		}
+	}
 	if v, ok := props["facing_direction"]; ok {
 		if face, ok := bedrockIntFace(v); ok {
 			next := bedrockTransformFace(face, t)
@@ -53,6 +66,15 @@ func TransformBedrockState(state BedrockState, axis string, turns int, flip bool
 			next := bedrockTransformDirection(d, t)
 			if next != d {
 				props["direction"] = bedrockStairsDirectionInt(next)
+				changed = true
+			}
+		}
+	}
+	if v, ok := props["direction"]; ok && bedrockUsesHorizontalDirectionState(state.Name) {
+		if d, ok := bedrockIntHorizontalDirection(v); ok {
+			next := bedrockTransformDirection(d, t)
+			if next != d {
+				props["direction"] = bedrockHorizontalDirectionInt(next)
 				changed = true
 			}
 		}
@@ -311,6 +333,16 @@ func bedrockIsTrapdoorState(name string) bool {
 	return name == "trapdoor" || strings.HasSuffix(name, "_trapdoor")
 }
 
+func bedrockUsesHorizontalDirectionState(name string) bool {
+	name = strings.TrimPrefix(name, "minecraft:")
+	switch name {
+	case "bed", "grindstone":
+		return true
+	default:
+		return false
+	}
+}
+
 func bedrockIntStairsDirection(v any) (cube.Direction, bool) {
 	n, ok := bedrockIntValue(v)
 	if !ok {
@@ -330,6 +362,40 @@ func bedrockIntStairsDirection(v any) (cube.Direction, bool) {
 	}
 }
 
+func bedrockIntHorizontalDirection(v any) (cube.Direction, bool) {
+	n, ok := bedrockIntValue(v)
+	if !ok {
+		return cube.North, false
+	}
+	switch n {
+	case 0:
+		return cube.South, true
+	case 1:
+		return cube.West, true
+	case 2:
+		return cube.North, true
+	case 3:
+		return cube.East, true
+	default:
+		return cube.North, false
+	}
+}
+
+func bedrockHorizontalDirectionInt(d cube.Direction) int32 {
+	switch d {
+	case cube.South:
+		return 0
+	case cube.West:
+		return 1
+	case cube.North:
+		return 2
+	case cube.East:
+		return 3
+	default:
+		return 2
+	}
+}
+
 func bedrockStairsDirectionInt(d cube.Direction) int32 {
 	switch d {
 	case cube.East:
@@ -342,6 +408,44 @@ func bedrockStairsDirectionInt(d cube.Direction) int32 {
 		return 3
 	default:
 		return 3
+	}
+}
+
+func bedrockFaceFromString(s string) (cube.Face, bool) {
+	switch strings.ToLower(s) {
+	case "down":
+		return cube.FaceDown, true
+	case "up":
+		return cube.FaceUp, true
+	case "north":
+		return cube.FaceNorth, true
+	case "south":
+		return cube.FaceSouth, true
+	case "west":
+		return cube.FaceWest, true
+	case "east":
+		return cube.FaceEast, true
+	default:
+		return cube.FaceUp, false
+	}
+}
+
+func bedrockFaceString(f cube.Face) string {
+	switch f {
+	case cube.FaceDown:
+		return "down"
+	case cube.FaceUp:
+		return "up"
+	case cube.FaceNorth:
+		return "north"
+	case cube.FaceSouth:
+		return "south"
+	case cube.FaceWest:
+		return "west"
+	case cube.FaceEast:
+		return "east"
+	default:
+		return "up"
 	}
 }
 

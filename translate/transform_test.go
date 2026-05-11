@@ -53,10 +53,28 @@ func TestTransformBedrockStateRotatesCommonDirectionalProperties(t *testing.T) {
 			want:  int32(0),
 		},
 		{
+			name:  "bed",
+			state: BedrockState{Name: "minecraft:bed", Properties: map[string]any{"direction": int32(3)}},
+			prop:  "direction",
+			want:  int32(0),
+		},
+		{
+			name:  "grindstone",
+			state: BedrockState{Name: "minecraft:grindstone", Properties: map[string]any{"direction": int32(3), "attachment": "side"}},
+			prop:  "direction",
+			want:  int32(0),
+		},
+		{
 			name:  "lever",
 			state: BedrockState{Name: "minecraft:lever", Properties: map[string]any{"lever_direction": "up_north_south"}},
 			prop:  "lever_direction",
 			want:  "up_east_west",
+		},
+		{
+			name:  "amethyst",
+			state: BedrockState{Name: "minecraft:amethyst_cluster", Properties: map[string]any{"minecraft:block_face": "east"}},
+			prop:  "minecraft:block_face",
+			want:  "south",
 		},
 		{
 			name:  "wall",

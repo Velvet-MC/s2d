@@ -24,5 +24,8 @@ func Powered(javaValue, bedrockIdent string) (string, any, bool) {
 	if strings.HasSuffix(bedrockIdent, "_button") || bedrockIdent == "wooden_button" || bedrockIdent == "stone_button" {
 		return "button_pressed_bit", boolToBit(javaValue), true
 	}
+	if strings.HasSuffix(bedrockIdent, "_head") || strings.HasSuffix(bedrockIdent, "_skull") {
+		return "", nil, false
+	}
 	return "powered_bit", boolToBit(javaValue), true
 }

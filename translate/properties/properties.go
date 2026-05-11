@@ -46,6 +46,7 @@ var Registry = map[string]Converter{
 	"in_wall":     InWall,
 	"rotation":    Rotation,
 	"shape":       Shape,
+	"tilt":        Tilt,
 	"hanging":     Hanging,
 	"face":        Face,
 	"part":        Part,

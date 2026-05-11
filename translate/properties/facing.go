@@ -15,7 +15,7 @@ func Facing(javaValue, bedrockIdent string) (string, any, bool) {
 		strings.HasSuffix(bedrockIdent, "_fence_gate") || bedrockIdent == "fence_gate" {
 		return "minecraft:cardinal_direction", javaValue, true
 	}
-	if strings.HasSuffix(bedrockIdent, "_glazed_terracotta") {
+	if strings.HasSuffix(bedrockIdent, "_glazed_terracotta") || bedrockIdent == "lightning_rod" {
 		return "facing_direction", blockFaceDirection(javaValue), true
 	}
 	if strings.HasSuffix(bedrockIdent, "_button") || bedrockIdent == "wooden_button" || bedrockIdent == "stone_button" {

@@ -519,6 +519,107 @@ func TestLookupPreservesRailStates(t *testing.T) {
 	}
 }
 
+func TestLookupPreservesHighRiskInteractiveStates(t *testing.T) {
+	tests := []struct {
+		key       string
+		wantName  string
+		wantProps map[string]any
+	}{
+		{
+			key:      "minecraft:lightning_rod[facing=north,powered=true,waterlogged=false]",
+			wantName: "minecraft:lightning_rod",
+			wantProps: map[string]any{
+				"facing_direction": int32(2),
+				"powered_bit":      uint8(1),
+			},
+		},
+		{
+			key:      "minecraft:amethyst_cluster[facing=east,waterlogged=false]",
+			wantName: "minecraft:amethyst_cluster",
+			wantProps: map[string]any{
+				"minecraft:block_face": "east",
+			},
+		},
+		{
+			key:      "minecraft:big_dripleaf[facing=west,tilt=full,waterlogged=false]",
+			wantName: "minecraft:big_dripleaf",
+			wantProps: map[string]any{
+				"big_dripleaf_head":            uint8(1),
+				"big_dripleaf_tilt":            "full_tilt",
+				"minecraft:cardinal_direction": "west",
+			},
+		},
+		{
+			key:      "minecraft:big_dripleaf_stem[facing=east,waterlogged=false]",
+			wantName: "minecraft:big_dripleaf",
+			wantProps: map[string]any{
+				"big_dripleaf_head":            uint8(0),
+				"big_dripleaf_tilt":            "none",
+				"minecraft:cardinal_direction": "east",
+			},
+		},
+		{
+			key:      "minecraft:piston[facing=east,extended=true]",
+			wantName: "minecraft:piston",
+			wantProps: map[string]any{
+				"facing_direction": int32(5),
+			},
+		},
+		{
+			key:      "minecraft:piston_head[facing=west,short=true,type=sticky]",
+			wantName: "minecraft:sticky_piston_arm_collision",
+			wantProps: map[string]any{
+				"facing_direction": int32(4),
+			},
+		},
+		{
+			key:      "minecraft:redstone_wire[east=side,north=up,power=7,south=none,west=side]",
+			wantName: "minecraft:redstone_wire",
+			wantProps: map[string]any{
+				"redstone_signal": int32(7),
+			},
+		},
+		{
+			key:      "minecraft:grindstone[face=wall,facing=east]",
+			wantName: "minecraft:grindstone",
+			wantProps: map[string]any{
+				"attachment": "side",
+				"direction":  int32(3),
+			},
+		},
+		{
+			key:      "minecraft:large_fern[half=upper]",
+			wantName: "minecraft:large_fern",
+			wantProps: map[string]any{
+				"upper_block_bit": uint8(1),
+			},
+		},
+		{
+			key:      "minecraft:player_wall_head[facing=south,powered=false]",
+			wantName: "minecraft:player_head",
+			wantProps: map[string]any{
+				"facing_direction": int32(3),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.key, func(t *testing.T) {
+			res := Lookup(tt.key)
+			if !res.Recognized {
+				t.Fatalf("%s not recognized", tt.key)
+			}
+			if res.BedrockState.Name != tt.wantName {
+				t.Fatalf("%s -> %s, want %s", tt.key, res.BedrockState.Name, tt.wantName)
+			}
+			for key, want := range tt.wantProps {
+				if got := res.BedrockState.Properties[key]; got != want {
+					t.Fatalf("%s property %s = %#v (%T), want %#v (%T)", tt.key, key, got, got, want, want)
+				}
+			}
+		})
+	}
+}
+
 func TestLookupPreservesAttachmentDirections(t *testing.T) {
 	tests := []struct {
 		key       string

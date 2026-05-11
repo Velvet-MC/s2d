@@ -480,6 +480,11 @@ func adjustBedrockIdentifier(javaName, bedrockIdent string, javaProps map[string
 			return "unlit_redstone_torch"
 		}
 		return "redstone_torch"
+	case "piston_head":
+		if javaProps["type"] == "sticky" {
+			return "sticky_piston_arm_collision"
+		}
+		return "piston_arm_collision"
 	}
 	if javaName == "light" {
 		return fmt.Sprintf("light_block_%s", javaProps["level"])
@@ -513,6 +518,16 @@ func applyJavaDerivedBedrockProperties(javaName, bedrockIdent string, javaProps 
 	case "tripwire":
 		if _, ok := props["suspended_bit"]; !ok {
 			props["suspended_bit"] = uint8(0)
+		}
+	case "big_dripleaf":
+		props["big_dripleaf_head"] = uint8(1)
+		if _, ok := props["big_dripleaf_tilt"]; !ok {
+			props["big_dripleaf_tilt"] = "none"
+		}
+	case "big_dripleaf_stem":
+		props["big_dripleaf_head"] = uint8(0)
+		if _, ok := props["big_dripleaf_tilt"]; !ok {
+			props["big_dripleaf_tilt"] = "none"
 		}
 	}
 	if bedrockIdent == "lever" {
