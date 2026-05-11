@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Velvet-MC/s2d/palette"
 	"github.com/Velvet-MC/s2d/translate/properties"
 
 	"github.com/df-mc/dragonfly/server/world"
@@ -55,6 +56,8 @@ var (
 	tableOnce sync.Once
 	tableErr  error
 	table     map[string]Result
+
+	bedrockPaletteForLookup *bedrockPaletteIndex
 )
 
 // buildTable populates `table` from the embedded data sources. Invoked exactly
@@ -83,17 +86,12 @@ func buildTable() {
 		tableErr = fmt.Errorf("translate: bedrock palette: %w", err)
 		return
 	}
+	bedrockPaletteForLookup = bedrockPalette
 
 	t := make(map[string]Result, 30000)
 	for _, jb := range javaBlocks {
-		bedrockIdent := jb.Name
-		ovr, hasOvr := overrides["minecraft:"+jb.Name]
-		if hasOvr && ovr.BedrockIdentifier != "" {
-			bedrockIdent = strings.TrimPrefix(ovr.BedrockIdentifier, "minecraft:")
-		}
-		if alias, ok := bedrockIdentifierAliases[jb.Name]; ok {
-			bedrockIdent = alias
-		}
+		ovr := overrides["minecraft:"+jb.Name]
+		bedrockIdent := baseBedrockIdentifier(jb.Name, ovr)
 
 		propNames, propValues := extractProperties(jb)
 
@@ -147,6 +145,22 @@ func buildTable() {
 	}
 
 	table = t
+}
+
+func lookupDynamicJavaState(raw string) (Result, bool) {
+	js, err := palette.Decode(raw)
+	if err != nil || js.Namespace != "minecraft" {
+		return Result{}, false
+	}
+	bedrockIdent := baseBedrockIdentifier(js.Name, override{})
+	resolvedIdent := adjustBedrockIdentifier(js.Name, bedrockIdent, js.Props)
+	waterlogged := strings.EqualFold(js.Props["waterlogged"], "true")
+	res := translateOne(bedrockPaletteForLookup, resolvedIdent, js.Props, waterlogged, override{})
+	if !res.Recognized {
+		return Result{}, false
+	}
+	res.RawKey = canonicalKey(js.Name, js.Props)
+	return res, true
 }
 
 // extractProperties returns the property names and per-name value lists for a
@@ -305,6 +319,31 @@ func translateOne(palette *bedrockPaletteIndex, bedrockIdent string, javaProps m
 	return res
 }
 
+func baseBedrockIdentifier(javaName string, ovr override) string {
+	if ovr.BedrockIdentifier != "" {
+		return strings.TrimPrefix(ovr.BedrockIdentifier, "minecraft:")
+	}
+	if alias, ok := bedrockIdentifierAliases[javaName]; ok {
+		return alias
+	}
+	if strings.HasPrefix(javaName, "potted_") {
+		return "flower_pot"
+	}
+	if strings.HasSuffix(javaName, "_wall_banner") {
+		return "wall_banner"
+	}
+	if strings.HasSuffix(javaName, "_banner") {
+		return "standing_banner"
+	}
+	if strings.HasSuffix(javaName, "_bed") {
+		return "bed"
+	}
+	if strings.HasSuffix(javaName, "_wall_skull") {
+		return strings.TrimSuffix(javaName, "_wall_skull") + "_skull"
+	}
+	return javaName
+}
+
 func needsWaterLayer(bedrockIdent string) bool {
 	switch bedrockIdent {
 	case "seagrass", "kelp", "kelp_plant":
@@ -315,71 +354,98 @@ func needsWaterLayer(bedrockIdent string) bool {
 }
 
 var bedrockIdentifierAliases = map[string]string{
-	"chain":                   "iron_chain",
-	"cobblestone_stairs":      "stone_stairs",
-	"cobweb":                  "web",
-	"dead_bush":               "deadbush",
-	"bubble_column":           "water",
-	"end_stone_bricks":        "end_bricks",
-	"end_stone_brick_stairs":  "end_brick_stairs",
-	"flowering_azalea_leaves": "azalea_leaves_flowered",
-	"grass":                   "short_grass",
-	"lily_pad":                "waterlily",
-	"magma_block":             "magma",
-	"melon":                   "melon_block",
-	"nether_portal":           "portal",
-	"note_block":              "noteblock",
-	"oak_button":              "wooden_button",
-	"oak_door":                "wooden_door",
-	"oak_fence_gate":          "fence_gate",
-	"oak_pressure_plate":      "wooden_pressure_plate",
-	"oak_sign":                "standing_sign",
-	"oak_trapdoor":            "trapdoor",
-	"oak_wall_sign":           "wall_sign",
-	"dark_oak_sign":           "darkoak_standing_sign",
-	"dark_oak_wall_sign":      "darkoak_wall_sign",
-	"spruce_sign":             "spruce_standing_sign",
-	"spruce_wall_sign":        "spruce_wall_sign",
-	"birch_sign":              "birch_standing_sign",
-	"birch_wall_sign":         "birch_wall_sign",
-	"jungle_sign":             "jungle_standing_sign",
-	"jungle_wall_sign":        "jungle_wall_sign",
-	"acacia_sign":             "acacia_standing_sign",
-	"acacia_wall_sign":        "acacia_wall_sign",
-	"mangrove_sign":           "mangrove_standing_sign",
-	"mangrove_wall_sign":      "mangrove_wall_sign",
-	"cherry_sign":             "cherry_standing_sign",
-	"cherry_wall_sign":        "cherry_wall_sign",
-	"crimson_sign":            "crimson_standing_sign",
-	"crimson_wall_sign":       "crimson_wall_sign",
-	"warped_sign":             "warped_standing_sign",
-	"warped_wall_sign":        "warped_wall_sign",
-	"prismarine_brick_stairs": "prismarine_bricks_stairs",
-	"stone_slab":              "smooth_stone_slab",
-	"spawner":                 "mob_spawner",
-	"terracotta":              "hardened_clay",
-	"wall_torch":              "torch",
-	"bricks":                  "brick_block",
-	"budding_amethyst":        "amethyst_block",
-	"pointed_dripstone":       "dripstone_block",
-	"rooted_dirt":             "dirt_with_roots",
-	"sugar_cane":              "reeds",
-	"tall_seagrass":           "seagrass",
-	"oak_sapling":             "short_grass",
-	"spruce_sapling":          "short_grass",
-	"birch_sapling":           "short_grass",
-	"jungle_sapling":          "short_grass",
-	"acacia_sapling":          "short_grass",
-	"dark_oak_sapling":        "short_grass",
-	"mangrove_propagule":      "short_grass",
-	"cherry_sapling":          "short_grass",
-	"bamboo_stairs":           "oak_stairs",
-	"bamboo_mosaic_stairs":    "oak_stairs",
-	"iron_trapdoor":           "trapdoor",
-	"iron_door":               "wooden_door",
+	"chain":                        "iron_chain",
+	"cobblestone_stairs":           "stone_stairs",
+	"cobweb":                       "web",
+	"dead_bush":                    "deadbush",
+	"bubble_column":                "water",
+	"end_stone_bricks":             "end_bricks",
+	"end_stone_brick_stairs":       "end_brick_stairs",
+	"flowering_azalea_leaves":      "azalea_leaves_flowered",
+	"grass":                        "short_grass",
+	"lily_pad":                     "waterlily",
+	"magma_block":                  "magma",
+	"melon":                        "melon_block",
+	"nether_portal":                "portal",
+	"note_block":                   "noteblock",
+	"oak_button":                   "wooden_button",
+	"oak_door":                     "wooden_door",
+	"oak_fence_gate":               "fence_gate",
+	"oak_pressure_plate":           "wooden_pressure_plate",
+	"oak_sign":                     "standing_sign",
+	"oak_trapdoor":                 "trapdoor",
+	"oak_wall_sign":                "wall_sign",
+	"dark_oak_sign":                "darkoak_standing_sign",
+	"dark_oak_wall_sign":           "darkoak_wall_sign",
+	"spruce_sign":                  "spruce_standing_sign",
+	"spruce_wall_sign":             "spruce_wall_sign",
+	"birch_sign":                   "birch_standing_sign",
+	"birch_wall_sign":              "birch_wall_sign",
+	"jungle_sign":                  "jungle_standing_sign",
+	"jungle_wall_sign":             "jungle_wall_sign",
+	"acacia_sign":                  "acacia_standing_sign",
+	"acacia_wall_sign":             "acacia_wall_sign",
+	"mangrove_sign":                "mangrove_standing_sign",
+	"mangrove_wall_sign":           "mangrove_wall_sign",
+	"cherry_sign":                  "cherry_standing_sign",
+	"cherry_wall_sign":             "cherry_wall_sign",
+	"crimson_sign":                 "crimson_standing_sign",
+	"crimson_wall_sign":            "crimson_wall_sign",
+	"warped_sign":                  "warped_standing_sign",
+	"warped_wall_sign":             "warped_wall_sign",
+	"prismarine_brick_stairs":      "prismarine_bricks_stairs",
+	"stone_slab":                   "smooth_stone_slab",
+	"spawner":                      "mob_spawner",
+	"terracotta":                   "hardened_clay",
+	"wall_torch":                   "torch",
+	"bricks":                       "brick_block",
+	"budding_amethyst":             "amethyst_block",
+	"pointed_dripstone":            "dripstone_block",
+	"rooted_dirt":                  "dirt_with_roots",
+	"sugar_cane":                   "reeds",
+	"tall_seagrass":                "seagrass",
+	"oak_sapling":                  "short_grass",
+	"spruce_sapling":               "short_grass",
+	"birch_sapling":                "short_grass",
+	"jungle_sapling":               "short_grass",
+	"acacia_sapling":               "short_grass",
+	"dark_oak_sapling":             "short_grass",
+	"mangrove_propagule":           "short_grass",
+	"cherry_sapling":               "short_grass",
+	"bamboo_stairs":                "oak_stairs",
+	"bamboo_mosaic_stairs":         "oak_stairs",
+	"iron_trapdoor":                "trapdoor",
+	"iron_door":                    "wooden_door",
+	"dirt_path":                    "grass_path",
+	"light_gray_glazed_terracotta": "silver_glazed_terracotta",
+	"red_nether_bricks":            "red_nether_brick",
+	"small_dripleaf":               "small_dripleaf_block",
+	"snow_block":                   "snow",
+	"beetroots":                    "beetroot",
+	"water_cauldron":               "cauldron",
+	"comparator":                   "unpowered_comparator",
+	"repeater":                     "unpowered_repeater",
+	"cave_vines_plant":             "cave_vines",
 }
 
 func adjustBedrockIdentifier(javaName, bedrockIdent string, javaProps map[string]string) string {
+	switch javaName {
+	case "comparator":
+		if javaProps["powered"] == "true" {
+			return "powered_comparator"
+		}
+		return "unpowered_comparator"
+	case "repeater":
+		if javaProps["powered"] == "true" {
+			return "powered_repeater"
+		}
+		return "unpowered_repeater"
+	case "cave_vines_plant":
+		if javaProps["berries"] == "true" {
+			return "cave_vines_body_with_berries"
+		}
+		return "cave_vines"
+	}
 	if javaName == "light" {
 		return fmt.Sprintf("light_block_%s", javaProps["level"])
 	}
@@ -392,6 +458,9 @@ func adjustBedrockIdentifier(javaName, bedrockIdent string, javaProps map[string
 		}
 	}
 	if javaProps["type"] == "double" && strings.HasSuffix(bedrockIdent, "_slab") {
+		if strings.HasSuffix(bedrockIdent, "cut_copper_slab") {
+			return strings.TrimSuffix(bedrockIdent, "cut_copper_slab") + "double_cut_copper_slab"
+		}
 		return strings.TrimSuffix(bedrockIdent, "_slab") + "_double_slab"
 	}
 	return bedrockIdent
@@ -423,6 +492,10 @@ func applyImplicitBedrockProperties(bedrockIdent string, props map[string]any) {
 	case "water":
 		if _, ok := props["liquid_depth"]; !ok {
 			props["liquid_depth"] = int32(0)
+		}
+	case "cauldron":
+		if _, ok := props["cauldron_liquid"]; !ok {
+			props["cauldron_liquid"] = "water"
 		}
 	}
 }

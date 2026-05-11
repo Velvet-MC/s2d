@@ -84,5 +84,8 @@ func Lookup(canonicalJavaState string) Result {
 	if r, ok := table[canonicalJavaState]; ok {
 		return r
 	}
+	if r, ok := lookupDynamicJavaState(canonicalJavaState); ok {
+		return r
+	}
 	return Result{Block: MissingBlock(), RawKey: canonicalJavaState}
 }

@@ -30,6 +30,11 @@ func Facing(javaValue, bedrockIdent string) (string, any, bool) {
 	if bedrockIdent == "chest" || bedrockIdent == "trapped_chest" || bedrockIdent == "ender_chest" {
 		return "minecraft:cardinal_direction", javaValue, true
 	}
+	if bedrockIdent == "unpowered_comparator" || bedrockIdent == "powered_comparator" ||
+		bedrockIdent == "unpowered_repeater" || bedrockIdent == "powered_repeater" ||
+		bedrockIdent == "small_dripleaf_block" {
+		return "minecraft:cardinal_direction", javaValue, true
+	}
 	if bedrockIdent == "anvil" {
 		return "minecraft:cardinal_direction", javaValue, true
 	}
@@ -39,7 +44,10 @@ func Facing(javaValue, bedrockIdent string) (string, any, bool) {
 	if strings.HasSuffix(bedrockIdent, "_stairs") {
 		return stairsDirection(javaValue)
 	}
-	if strings.HasSuffix(bedrockIdent, "_wall_sign") || bedrockIdent == "wall_sign" {
+	if strings.HasSuffix(bedrockIdent, "_wall_sign") || bedrockIdent == "wall_sign" || bedrockIdent == "wall_banner" {
+		return "facing_direction", wallSignDirection(javaValue), true
+	}
+	if strings.HasSuffix(bedrockIdent, "_skull") {
 		return "facing_direction", wallSignDirection(javaValue), true
 	}
 	switch bedrockIdent {

@@ -252,6 +252,107 @@ func TestLookup_PrismBaroqueMissingStates(t *testing.T) {
 	}
 }
 
+func TestLookup_SkyOlympusMissingStates(t *testing.T) {
+	tests := []struct {
+		key       string
+		wantName  string
+		wantProps map[string]any
+	}{
+		{key: "minecraft:short_grass", wantName: "minecraft:short_grass"},
+		{key: "minecraft:dirt_path", wantName: "minecraft:grass_path"},
+		{
+			key:      "minecraft:light_gray_glazed_terracotta[facing=west]",
+			wantName: "minecraft:silver_glazed_terracotta",
+			wantProps: map[string]any{
+				"facing_direction": int32(4),
+			},
+		},
+		{key: "minecraft:red_nether_bricks", wantName: "minecraft:red_nether_brick"},
+		{
+			key:      "minecraft:small_dripleaf[facing=east,half=upper,waterlogged=false]",
+			wantName: "minecraft:small_dripleaf_block",
+			wantProps: map[string]any{
+				"minecraft:cardinal_direction": "east",
+				"upper_block_bit":              uint8(1),
+			},
+		},
+		{key: "minecraft:snow_block", wantName: "minecraft:snow"},
+		{key: "minecraft:polished_tuff", wantName: "minecraft:polished_tuff"},
+		{key: "minecraft:waxed_weathered_cut_copper_slab[type=double,waterlogged=false]", wantName: "minecraft:waxed_weathered_double_cut_copper_slab"},
+		{
+			key:      "minecraft:tuff_stairs[facing=west,half=top,shape=straight,waterlogged=false]",
+			wantName: "minecraft:tuff_stairs",
+			wantProps: map[string]any{
+				"weirdo_direction": int32(1),
+				"upside_down_bit":  uint8(1),
+			},
+		},
+		{key: "minecraft:tuff_wall[east=none,north=tall,south=tall,up=true,waterlogged=false,west=tall]", wantName: "minecraft:tuff_wall"},
+		{
+			key:      "minecraft:red_wall_banner[facing=south]",
+			wantName: "minecraft:wall_banner",
+			wantProps: map[string]any{
+				"facing_direction": int32(3),
+			},
+		},
+		{key: "minecraft:potted_blue_orchid", wantName: "minecraft:flower_pot"},
+		{key: "minecraft:cave_vines_plant[berries=true]", wantName: "minecraft:cave_vines_body_with_berries"},
+		{key: "minecraft:beetroots[age=0]", wantName: "minecraft:beetroot", wantProps: map[string]any{"growth": int32(0)}},
+		{key: "minecraft:water_cauldron[level=3]", wantName: "minecraft:cauldron", wantProps: map[string]any{"cauldron_liquid": "water", "fill_level": int32(6)}},
+		{
+			key:      "minecraft:waxed_weathered_copper_trapdoor[facing=north,half=bottom,open=true,powered=false,waterlogged=false]",
+			wantName: "minecraft:waxed_weathered_copper_trapdoor",
+			wantProps: map[string]any{
+				"direction":       int32(3),
+				"open_bit":        uint8(1),
+				"upside_down_bit": uint8(0),
+			},
+		},
+		{
+			key:      "minecraft:white_bed[facing=east,occupied=true,part=foot]",
+			wantName: "minecraft:bed",
+			wantProps: map[string]any{
+				"direction":      int32(3),
+				"head_piece_bit": uint8(0),
+				"occupied_bit":   uint8(1),
+			},
+		},
+		{
+			key:      "minecraft:comparator[facing=east,mode=subtract,powered=false]",
+			wantName: "minecraft:unpowered_comparator",
+			wantProps: map[string]any{
+				"minecraft:cardinal_direction": "east",
+				"output_lit_bit":               uint8(0),
+				"output_subtract_bit":          uint8(1),
+			},
+		},
+		{
+			key:      "minecraft:repeater[delay=2,facing=east,locked=false,powered=false]",
+			wantName: "minecraft:unpowered_repeater",
+			wantProps: map[string]any{
+				"minecraft:cardinal_direction": "east",
+				"repeater_delay":               int32(1),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.key, func(t *testing.T) {
+			res := Lookup(tt.key)
+			if !res.Recognized {
+				t.Fatalf("%s not recognized", tt.key)
+			}
+			if res.BedrockState.Name != tt.wantName {
+				t.Fatalf("%s -> %s, want %s", tt.key, res.BedrockState.Name, tt.wantName)
+			}
+			for k, want := range tt.wantProps {
+				if got := res.BedrockState.Properties[k]; got != want {
+					t.Fatalf("%s property %s = %#v (%T), want %#v (%T)", tt.key, k, got, got, want, want)
+				}
+			}
+		})
+	}
+}
+
 func TestLookupPreservesAttachmentDirections(t *testing.T) {
 	tests := []struct {
 		key       string

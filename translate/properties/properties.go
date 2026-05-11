@@ -48,6 +48,10 @@ var Registry = map[string]Converter{
 	"shape":       Shape,
 	"hanging":     Hanging,
 	"face":        Face,
+	"part":        Part,
+	"occupied":    Occupied,
+	"mode":        Mode,
+	"delay":       Delay,
 }
 
 // boolToBit returns 1 for "true", 0 otherwise.

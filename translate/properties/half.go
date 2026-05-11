@@ -11,6 +11,12 @@ func Half(javaValue, bedrockIdent string) (string, any, bool) {
 		}
 		return "sea_grass_type", "double_bot", true
 	}
+	if bedrockIdent == "small_dripleaf_block" {
+		if javaValue == "upper" {
+			return "upper_block_bit", uint8(1), true
+		}
+		return "upper_block_bit", uint8(0), true
+	}
 	if strings.HasSuffix(bedrockIdent, "_door") || bedrockIdent == "wooden_door" || bedrockIdent == "iron_door" ||
 		bedrockIdent == "tall_grass" || bedrockIdent == "large_fern" ||
 		bedrockIdent == "sunflower" || bedrockIdent == "lilac" ||
